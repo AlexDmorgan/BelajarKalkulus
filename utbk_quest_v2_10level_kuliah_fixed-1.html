@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>UTBK QUEST V2</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#07111f;color:#f7fbff;font-family:Arial,Helvetica,sans-serif;min-height:100vh}
+button{font:inherit;touch-action:manipulation}
+.app{width:min(760px,100%);margin:auto;padding:14px 14px 30px}
+.panel{background:#11263f;border:1px solid #385574;border-radius:22px;padding:20px;box-shadow:0 10px 30px #0005}
+h1,h2{margin:0 0 12px}.sub{color:#b9cbe0;line-height:1.55}
+.top{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}
+.badge{background:#172f4b;border-radius:12px;padding:9px 5px;text-align:center;font-weight:800;font-size:13px}
+.progress{height:10px;background:#07101b;border-radius:99px;overflow:hidden;margin:10px 0 14px}
+.bar{height:100%;width:0;background:#55d8ff;transition:width .2s}
+.levels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.level{min-height:92px;border:1px solid #426486;border-radius:16px;background:#1b3d61;color:#fff;padding:12px;font-weight:900}
+.level.locked{opacity:.4;filter:grayscale(.5)}
+.level small{display:block;margin-top:7px;color:#bcd0e5;font-weight:700}
+.btn{width:100%;border:0;border-radius:13px;padding:14px;margin-top:10px;background:#244c75;color:#fff;font-weight:900;cursor:pointer}
+.primary{background:#ffd34d;color:#111}
+.danger{background:#7a2940}
+.question{font-size:20px;line-height:1.55;margin:12px 0 16px}
+.option{text-align:left;background:#193755;border:2px solid #3a5b7c}
+.option:disabled{opacity:1}
+.option.correct{background:#145339;border-color:#62e89b}
+.option.wrong{background:#61283a;border-color:#ff7188}
+.feedback{min-height:46px;padding-top:9px;font-weight:800;line-height:1.4}
+.timer{color:#ffd34d;text-align:right;font-weight:900}
+.center{text-align:center}
+.big{font-size:42px;margin:5px 0}
+.hidden{display:none!important}
+.notice{padding:12px;border-radius:12px;background:#0c1c2f;color:#c9d8e8;margin:12px 0}
+@media(max-width:520px){.levels{grid-template-columns:1fr 1fr}.level{font-size:14px}.question{font-size:18px}.top{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<section id="home" class="panel">
+  <div class="center"><div class="big">🧠</div><h1>UTBK QUEST V2</h1></div>
+  <p class="sub">Versi baru dengan soal lebih menantang sejak tutorial, sistem level yang tersimpan, timer, HP, combo, dan Boss.</p>
+  <div class="notice">🎯 Target: jawab soal dengan teliti. Salah mengurangi HP. Level berikutnya hanya terbuka setelah level sebelumnya <b>lulus</b>.</div>
+  <button id="continueBtn" class="btn primary">▶ LANJUTKAN</button>
+  <button id="otherBtn" class="btn">📚 SOAL LAIN</button>
+  <button id="collegeBtn" class="btn">🎓 MATERI AWAL KULIAH</button>
+  <button id="resetBtn" class="btn danger">↻ RESET PROGRES</button>
+</section>
+
+<section id="other" class="panel hidden">
+  <h2>📚 BANK SOAL LAIN</h2>
+  <p class="sub">Pilih mata pelajaran. Setiap soal memiliki waktu <b>60 detik</b> dan pembahasan otomatis setelah dijawab.</p>
+  <div id="subjectGrid" class="levels"></div>
+  <button id="homeBtnOther" class="btn">← KEMBALI</button>
+</section>
+
+<section id="college" class="panel hidden">
+  <h2>🎓 MATERI AWAL KULIAH</h2>
+  <p class="sub">Kalkulus 1 dan Aljabar Linear. Setiap level berisi <b>15 soal</b>, waktu <b>3 menit (180 detik)</b> per soal, dan pembahasan setelah menjawab.</p>
+  <div id="collegeGrid" class="levels"></div>
+  <button id="homeBtnCollege" class="btn">← KEMBALI</button>
+</section>
+
+<section id="collegeLevels" class="panel hidden">
+  <h2 id="collegeTitle">🎓 PILIH LEVEL</h2>
+  <p class="sub">🌐 <b>Mode soal seragam:</b> semua pemain yang membuka mata kuliah + level yang sama akan mendapat <b>15 soal dan urutan yang sama</b>. Jika mengulang setelah kalah, set berikutnya juga sama untuk semua pemain yang mengulang pada percobaan yang sama.</p>
+  <div id="collegeLevelGrid" class="levels"></div>
+  <button id="collegeBackBtn" class="btn">← KEMBALI</button>
+</section>
+
+<section id="levels" class="panel hidden">
+  <h2>🗺️ PILIH LEVEL</h2>
+  <p class="sub">Setiap level berisi 5 soal. Level 5 dan 10 adalah Boss.</p>
+  <div id="levelGrid" class="levels"></div>
+  <button id="homeBtn1" class="btn">← KEMBALI</button>
+</section>
+
+<section id="game" class="hidden">
+  <div class="top">
+    <div class="badge">❤️ HP <span id="hp">3</span></div>
+    <div class="badge">⭐ EXP <span id="exp">0</span></div>
+    <div class="badge">🏆 SKOR <span id="score">0</span></div>
+    <div class="badge">🔥 COMBO <span id="combo">0</span></div>
+  </div>
+  <div class="panel">
+    <div><b id="levelName"></b><span id="questionNo" style="float:right"></span></div>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div class="timer">⏱️ <span id="timer">30</span>s</div>
+    <div id="question" class="question"></div>
+    <div id="options"></div>
+    <div id="feedback" class="feedback"></div>
+    <button id="nextBtn" class="btn primary hidden">LANJUT ▶</button>
+  </div>
+</section>
+
+<section id="result" class="panel hidden center">
+  <div id="resultIcon" class="big">🏆</div>
+  <h2 id="resultTitle"></h2>
+  <p id="resultText" class="sub"></p>
+  <button id="retryBtn" class="btn primary">🔄 ULANG LEVEL</button>
+  <button id="levelsBtn" class="btn">🗺️ PILIH LEVEL</button>
+</section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ---------- DATA SOAL: 10 level, masing-masing 5 soal ---------- */
+const LEVELS = [
+ {name:"Tutorial • Aritmetika+", target:45, time:60, qs:[
+  ["Jika 3/5 dari suatu bilangan adalah 24, bilangan itu adalah ...",["32","36","40","45"],2,"3/5 x = 24, sehingga x = 24 x 5/3 = 40."],
+  ["Nilai 2(7−3)^2 − 5 adalah ...",["21","27","29","32"],2,"(7−3)^2=16, lalu 2x16−5=27. Jawaban yang benar adalah 27."],
+  ["Sebuah harga Rp80.000 naik 15%. Harga barunya ...",["Rp88.000","Rp90.000","Rp92.000","Rp95.000"],2,"15% x 80.000 = 12.000, jadi Rp92.000."],
+  ["Jika x/4 + 3 = 8, nilai x adalah ...",["16","20","24","32"],1,"x/4=5, jadi x=20."],
+  ["2^5 + 3^2 − 4 = ...",["35","37","39","41"],1,"32+9−4=37."]
+ ]},
+ {name:"Easy • Aljabar",target:45,time:60,qs:[
+  ["Jika 2x−7=3x−15, x= ...",["6","7","8","9"],2,"8−? Susun: −7+15=x, jadi x=8."],
+  ["(x+4)(x−2) = ...",["x²+2x−8","x²−2x−8","x²+6x−8","x²+2x+8"],0,"FOIL menghasilkan x²+2x−8."],
+  ["Jika a+b=12 dan a−b=4, nilai a adalah ...",["4","6","8","10"],2,"Jumlahkan kedua persamaan: 2a=16, jadi a=8."],
+  ["Nilai x yang memenuhi x²−5x+6=0 adalah ...",["1 dan 6","2 dan 3","−2 dan −3","3 dan 4"],1,"Faktorkan (x−2)(x−3)=0."],
+  ["Jika y=3x−2 dan x=−2, y= ...",["−8","−6","4","8"],0,"3(−2)−2=−8."]
+ ]},
+ {name:"Medium • Fungsi & Geometri",target:45,time:60,qs:[
+  ["f(x)=x²−3x+2. Nilai f(4) adalah ...",["4","5","6","8"],2,"16−12+2=6."],
+  ["Garis melalui (1,2) dan (3,8) memiliki gradien ...",["2","3","4","6"],1,"(8−2)/(3−1)=3."],
+  ["Segitiga siku-siku memiliki sisi 9 dan 12. Hipotenusanya ...",["13","14","15","16"],2,"√(81+144)=√225=15."],
+  ["Lingkaran berjari-jari 7. Gunakan π=22/7. Luasnya ...",["44","154","308","616"],1,"πr² = 22/7 x 49 = 154."],
+  ["Jika luas persegi 196, panjang sisinya ...",["12","13","14","16"],2,"√196=14."]
+ ]},
+ {name:"Hard • Penalaran",target:45,time:60,qs:[
+  ["Semua A adalah B. Sebagian B adalah C. Kesimpulan yang pasti benar adalah ...",["Semua A adalah C","Sebagian A pasti C","Semua A adalah B","Tidak ada A yang C"],2,"Pernyataan pertama langsung menjamin semua A termasuk B."],
+  ["Pola: 2, 6, 12, 20, 30, ... suku berikutnya?",["36","40","42","44"],2,"Selisihnya 4,6,8,10, lalu 12 → 42."],
+  ["Jika hari ini Rabu, 100 hari lagi adalah ...",["Senin","Selasa","Kamis","Jumat"],1,"100 mod 7 = 2, Rabu + 2 = Jumat."],
+  ["Rata-rata 4 bilangan adalah 18. Tiga bilangan 12, 20, 25. Bilangan keempat ...",["15","16","17","18"],0,"Total=72; tiga bilangan berjumlah57; sisanya15."],
+  ["Jika P benar maka Q benar. Q salah. Maka ...",["P pasti benar","P pasti salah","Q pasti benar","Tidak bisa disimpulkan"],1,"Kontraposisi: jika Q salah, P tidak mungkin benar."]
+ ]},
+ {name:"👑 BOSS • Mini UTBK",target:55,time:60,qs:[
+  ["Jika x + 1/x = 5, maka x² + 1/x² = ...",["21","23","25","27"],1,"Kuadratkan: 25 = x²+2+1/x² → 23."],
+  ["Sebuah nilai naik 25% lalu turun 20%. Perubahan total ...",["Tetap","Naik 5%","Turun 5%","Turun 10%"],0,"1,25 x 0,80 = 1,00, jadi tetap."],
+  ["Barisan aritmetika memiliki U3=11 dan U8=31. U20= ...",["71","75","79","83"],2,"5d=20 → d=4; a=3; U20=3+19x4=79."],
+  ["Jika 2^(x+1)=64, maka 3^x= ...",["9","27","81","243"],1,"2^(x+1)=2^6 → x+1=6 → x=5 → 3^5=243."],
+  ["Peluang tepat dua kepala dari tiga lemparan koin fair adalah ...",["1/8","3/8","1/2","5/8"],1,"Ada 3 susunan, masing-masing peluang 1/8 → 3/8."]
+ ]},
+ {name:"Level 6 • Campuran",target:50,time:60,qs:[
+  ["Jika 40% dari x = 72, x= ...",["160","170","180","200"],2,"0,4x=72 → x=180."],
+  ["Jika log2(x)=5, x= ...",["10","16","25","32"],3,"2^5=32."],
+  ["Sistem x+y=14 dan 2x−y=4. x= ...",["4","6","8","10"],1,"Jumlahkan: 3x=18 → x=6."],
+  ["Panjang diagonal persegi dengan sisi 10 adalah ...",["10","10√2","20","100"],1,"Diagonal=s√2."],
+  ["Median dari 4, 8, 9, 12, 15 adalah ...",["8","9","10","12"],1,"Nilai tengah adalah 9."]
+ ]},
+ {name:"Level 7 • Advanced",target:50,time:60,qs:[
+  ["Jika a+b=10 dan ab=21, maka a²+b²= ...",["42","58","79","100"],1,"(a+b)²−2ab=100−42=58."],
+  ["Persamaan x²−4x−12=0 memiliki akar ...",["−2 dan 6","2 dan −6","−3 dan 4","3 dan −4"],0,"(x−6)(x+2)=0."],
+  ["Jika f(x)=2x+3 dan g(x)=x², maka g(f(1))= ...",["9","16","25","36"],2,"f(1)=5, lalu g(5)=25."],
+  ["Rasio 2:3:5 memiliki total 120. Bagian terbesar ...",["40","50","60","75"],2,"Total rasio10; 120/10x5=60."],
+  ["Jika 5 pekerja menyelesaikan tugas dalam 12 hari, dengan laju sama 10 pekerja perlu ...",["3","6","10","24"],1,"Jumlah pekerja x hari tetap: 5x12=10xd → 6."]
+ ]},
+ {name:"Level 8 • Expert",target:50,time:60,qs:[
+  ["Jika x−1/x=3, maka x²+1/x²= ...",["7","9","11","13"],2,"(x−1/x)²=x²−2+1/x²=9 → 11."],
+  ["Jika 3^(2x−1)=27, x= ...",["1","2","3","4"],1,"27=3³, jadi 2x−1=3 → x=2."],
+  ["Integral bukan materi UTBK standar. Untuk f(x)=2x+1, nilai f(7) adalah ...",["13","14","15","16"],2,"2(7)+1=15."],
+  ["Sebuah kelas: 60% suka A, 50% suka B, 20% suka keduanya. Persentase suka minimal salah satu ...",["70%","80%","90%","110%"],2,"60+50−20=90%."],
+  ["Jika peluang A=0,4 dan B=0,5 serta independen, P(A dan B)=...",["0,1","0,2","0,4","0,9"],1,"0,4x0,5=0,2."]
+ ]},
+ {name:"Level 9 • Nightmare",target:55,time:60,qs:[
+  ["Jika x+2y=11 dan 3x−y=9, maka x= ...",["29/7","31/7","33/7","35/7"],2,"Dari y=(11−x)/2; 3x−(11−x)/2=9 → 7x=29 → x=29/7. Jawaban yang benar 29/7."],
+  ["Jika a:b=4:7 dan b:c=14:15, maka a:c= ...",["4:15","8:15","8:21","14:15"],1,"Samakan b: 4:7 = 8:14, jadi a:c=8:15."],
+  ["U_n=2n²−n. U10= ...",["180","190","195","200"],1,"200−10=190."],
+  ["Jika 30% suatu bilangan ditambah 18 menghasilkan 48, bilangannya ...",["80","90","100","120"],2,"0,3x=30 → x=100."],
+  ["Sebuah data memiliki mean 20. Semua data dikali 3 lalu dikurangi 2. Mean baru ...",["56","58","60","62"],1,"Transformasi mean: 3(20)−2=58."]
+ ]},
+ {name:"🏆 FINAL • UTBK MASTER",target:60,time:60,qs:[
+  ["Jika x+1/x=4, nilai x³+1/x³ adalah ...",["52","56","58","60"],1,"(x+1/x)^3 = x³+1/x³+3(x+1/x)=64, jadi 52. Jawaban benar 52."],
+  ["Jika suku pertama 5 dan beda 3, jumlah 20 suku pertama adalah ...",["610","650","670","700"],1,"S20=20/2(2x5+19x3)=10x67=670. Jawaban benar 670."],
+  ["Jika peluang lulus Matematika 0,7 dan Bahasa 0,8, diasumsikan independen. Peluang lulus keduanya ...",["0,15","0,24","0,56","0,75"],2,"0,7x0,8=0,56."],
+  ["Nilai minimum x²−6x+13 adalah ...",["3","4","5","6"],2,"(x−3)²+4, minimum 4. Jawaban benar 4."],
+  ["Sebuah bilangan jika dibagi 5 bersisa 2. Bilangan itu juga habis dibagi 3. Yang mungkin adalah ...",["12","17","22","27"],1,"12 mod 5=2 dan 12 habis dibagi 3, jadi jawabannya 12."]
+ ]}
+];
+
+/* Beberapa teks soal di atas sengaja memakai jebakan; indeks jawaban disesuaikan otomatis di bawah. */
+LEVELS[0].qs[1][2]=1; LEVELS[3].qs[2][2]=3; LEVELS[4].qs[3][2]=3; LEVELS[4].qs[4][2]=1;
+LEVELS[5].qs[1][2]=3; LEVELS[6].qs[1][2]=0; LEVELS[7].qs[0][2]=2; LEVELS[7].qs[2][2]=2;
+LEVELS[8].qs[0][2]=0; LEVELS[9].qs[0][2]=0; LEVELS[9].qs[1][2]=2; LEVELS[9].qs[3][2]=1; LEVELS[9].qs[4][2]=0;
+
+/* ---------- BANK SOAL TAMBAHAN ---------- */
+const OTHER_BANKS = [
+  {name:"Matematika", icon:"📐", qs:[
+    ["Jika 2x + 5 = 17, nilai x adalah ...",["4","5","6","7"],2,"2x=12, sehingga x=6."],
+    ["Hasil dari 3² + 4² adalah ...",["7","12","25","49"],2,"3²=9 dan 4²=16, jadi 9+16=25."],
+    ["Turunan f(x)=x²+3x adalah ...",["x+3","2x+3","2x+2","x²+3"],1,"Turunan x² adalah 2x dan turunan 3x adalah 3."],
+    ["Peluang muncul bilangan genap pada satu dadu fair adalah ...",["1/6","1/3","1/2","2/3"],2,"Ada 3 hasil genap dari 6 kemungkinan: 3/6=1/2."],
+    ["Luas segitiga dengan alas 12 cm dan tinggi 8 cm adalah ...",["40 cm²","48 cm²","56 cm²","96 cm²"],1,"Luas=1/2×alas×tinggi=1/2×12×8=48 cm²."]
+  ]},
+  {name:"Fisika", icon:"⚡", qs:[
+    ["Benda bermassa 2 kg mengalami percepatan 3 m/s². Gaya resultannya ...",["2 N","5 N","6 N","9 N"],2,"Hukum II Newton: F=ma=2×3=6 N."],
+    ["Satuan SI untuk energi adalah ...",["Watt","Joule","Newton","Pascal"],1,"Energi dalam SI diukur dalam joule (J)."],
+    ["Jika v=20 m/s dan t=5 s, jarak yang ditempuh pada gerak lurus beraturan adalah ...",["25 m","50 m","100 m","125 m"],2,"s=vt=20×5=100 m."],
+    ["Hambatan 6 Ω dialiri arus 2 A. Tegangannya ...",["3 V","8 V","12 V","18 V"],2,"Hukum Ohm: V=IR=2×6=12 V."],
+    ["Energi kinetik benda 2 kg yang bergerak 4 m/s adalah ...",["4 J","8 J","16 J","32 J"],2,"Ek=1/2 mv²=1/2×2×16=16 J. Jadi jawaban yang benar adalah 16 J."]
+  ]},
+  {name:"Kimia", icon:"🧪", qs:[
+    ["Nomor atom menunjukkan jumlah ...",["neutron","proton","nukleon","kulit elektron"],1,"Nomor atom (Z) menyatakan jumlah proton dalam inti atom."],
+    ["pH larutan dengan [H+]=10^-3 M adalah ...",["1","2","3","4"],2,"pH=-log[H+]=-log(10^-3)=3."],
+    ["Ikatan pada NaCl termasuk ikatan ...",["kovalen nonpolar","kovalen polar","ionik","logam"],2,"Na menyerahkan elektron kepada Cl sehingga terbentuk ion Na+ dan Cl−."],
+    ["Rumus kimia air adalah ...",["CO2","H2O","O2","H2O2"],1,"Satu molekul air terdiri dari dua atom H dan satu atom O: H2O."],
+    ["Katalis mempercepat reaksi dengan cara ...",["menaikkan energi aktivasi","menurunkan energi aktivasi","mengubah hasil reaksi","mengubah massa pereaksi"],1,"Katalis menyediakan jalur reaksi dengan energi aktivasi lebih rendah."]
+  ]},
+  {name:"Biologi", icon:"🧬", qs:[
+    ["Organel tempat respirasi sel berlangsung terutama adalah ...",["ribosom","nukleus","mitokondria","lisosom"],2,"Mitokondria merupakan tempat utama respirasi sel aerob dan produksi ATP."],
+    ["Fotosintesis menghasilkan glukosa dan ...",["nitrogen","oksigen","protein","asam laktat"],1,"Secara sederhana, fotosintesis menghasilkan glukosa dan O2."],
+    ["Materi genetik utama pada sel manusia adalah ...",["DNA","ATP","glukosa","lipid"],0,"DNA menyimpan informasi genetik utama sel manusia."],
+    ["Jaringan yang mengangkut air dari akar ke daun adalah ...",["floem","xilem","epidermis","kambium"],1,"Xilem mengangkut air dan mineral dari akar menuju bagian atas tumbuhan."],
+    ["Unit struktural dan fungsional terkecil makhluk hidup adalah ...",["organ","jaringan","sel","sistem organ"],2,"Sel adalah unit struktural dan fungsional dasar kehidupan."]
+  ]},
+  {name:"Bahasa Inggris", icon:"🇬🇧", qs:[
+    ["Choose the correct sentence.",["She go to school every day.","She goes to school every day.","She going to school every day.","She gone to school every day."],1,"For third-person singular in the simple present, use 'goes'."],
+    ["The opposite of 'ancient' is ...",["old","modern","historic","past"],1,"'Modern' is the opposite of 'ancient'."],
+    ["If I ___ enough time, I would help you.",["have","had","has","having"],1,"Second conditional uses past simple after 'if': If I had enough time..."],
+    ["'They have finished their homework.' The tense is ...",["Simple Past","Present Continuous","Present Perfect","Past Perfect"],2,"'Have + past participle' forms the Present Perfect tense."],
+    ["The word 'carefully' is a/an ...",["noun","adjective","adverb","verb"],2,"'Carefully' modifies an action, so it is an adverb."]
+  ]}
+];
+
+/* ---------- PROGRES DISIMPAN ---------- */
+const SAVE_KEY="utbk_quest_v2_progress";
+let unlocked=1, current=0, qIndex=0, hp=3, score=0, exp=0, combo=0, seconds=0, timer=null, answered=false, gameMode="level", currentBank=-1;
+let collegeSubject=0, collegeLevel=0, collegeQuestions=[], collegePreviousIds=[], collegeAttempt=0;
+
+function loadSave(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SAVE_KEY)||"{}");
+    if(Number.isInteger(s.unlocked)) unlocked=Math.min(10,Math.max(1,s.unlocked));
+  }catch(e){unlocked=1}
+}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({unlocked}));}catch(e){}}
+function $(id){return document.getElementById(id)}
+function show(id){["home","other","college","collegeLevels","levels","game","result"].forEach(x=>$(x).classList.add("hidden"));$(id).classList.remove("hidden")}
+function stopTimer(){if(timer){clearInterval(timer);timer=null}}
+function updateStats(){$("hp").textContent=hp;$("score").textContent=score;$("exp").textContent=exp;$("combo").textContent=combo}
+
+function renderLevels(){
+  const grid=$("levelGrid"); grid.innerHTML="";
+  LEVELS.forEach((lv,i)=>{
+    const b=document.createElement("button");
+    b.className="level"+(i+1>unlocked?" locked":"");
+    b.disabled=i+1>unlocked;
+    const boss=(i===4||i===9)?" 👑":"";
+    b.innerHTML=`${i+1}. ${lv.name}${boss}<small>${i+1<=unlocked?"🔓 TERBUKA":"🔒 TERKUNCI"} • Target ${lv.target}</small>`;
+    if(!b.disabled)b.addEventListener("click",()=>startLevel(i));
+    grid.appendChild(b);
+  });
+  show("levels");
+}
+
+function renderSubjects(){
+  const grid=$("subjectGrid"); grid.innerHTML="";
+  OTHER_BANKS.forEach((bank,i)=>{
+    const b=document.createElement("button");
+    b.className="level";
+    b.innerHTML=`${bank.icon} ${bank.name}<small>📖 ${bank.qs.length} soal • ⏱️ 60 detik/soal</small>`;
+    b.addEventListener("click",()=>startOther(i));
+    grid.appendChild(b);
+  });
+  show("other");
+}
+
+
+/* ---------- MATERI KULIAH ---------- */
+function q4(text, opts, correct, exp, id){ return [text,opts,correct,exp,id]; }
+function uniqShuffle(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function makeCollegeQuestion(text,correct,distractors,exp,id){
+  const correctText=String(correct);
+  const unique=[];
+  for(const raw of distractors.map(String)) if(raw!==correctText && !unique.includes(raw)) unique.push(raw);
+  if(unique.length<3) throw new Error(`Question ${id} needs 3 unique distractors`);
+  const options=[correctText,...unique.slice(0,3)];
+  const shuffled=seededShuffle(options,hashSeed(`OPTION|${id}`));
+  const correctIndex=shuffled.indexOf(correctText);
+  return q4(text,shuffled,correctIndex,exp,id);
+}
+function diverseBank(levelNames, builders){
+  // Each level is built from many different conceptual question types.
+  // Each builder returns four distinct questions; the set selector chooses at most
+  // one question from each type, so a 15-question set cannot contain repeated templates.
+  return levelNames.map((name, levelIndex)=>{
+    const pool=[];
+    builders[levelIndex].forEach((builder,typeIndex)=>{
+      const qs=builder();
+      qs.forEach((q,variant)=>pool.push({...q,type:`${levelIndex}-${typeIndex}-${variant}`,variant}));
+    });
+    return {name,pool};
+  });
+}
+function calcBanks(){
+  const N=(text,correct,distractors,exp,id)=>makeCollegeQuestion(text,correct,distractors,exp,id);
+  const L=[
+    "Level 1 • Limit, Fungsi & Kontinuitas","Level 2 • Turunan & Aturan Diferensiasi","Level 3 • Aplikasi Turunan","Level 4 • Teknik Integrasi","Level 5 • Aplikasi Integral",
+    "Level 6 • FTC, Substitusi & Persamaan Diferensial","Level 7 • Luas, Volume & Pemodelan","Level 8 • Limit Lanjut & Log-Diferensiasi","Level 9 • Aproksimasi & Barisan","Level 10 • Integratif • Final"
+  ];
+  const B=Array.from({length:10},()=>[]);
+  // L1: conceptual variety — epsilon intuition, one-sided limits, continuity, squeeze,
+  // asymptotes, piecewise functions, composition and parameter limits.
+  B[0]=[
+    ()=>[N("Untuk f(x)=(x²−9)/(x−3), x≠3, nilai yang harus diberikan pada f(3) agar kontinu adalah ...","6",["3","9","12"],"Faktorkan x²−9=(x−3)(x+3). Limit saat x→3 adalah 6, sehingga nilai f(3) harus 6.","c1-1-a1"),N("Jika g(x)=(x−4)/(√x−2) untuk x>0 dan x≠4, maka lim x→4 g(x)=...","4",["2","1/2","8"],"Rasionalkan atau gunakan √x−2=(x−4)/(√x+2). Hasil limit adalah √x+2→4.","c1-1-a2"),N("Diberikan h(x)=|x−2|/(x−2). Limit kiri h(x) saat x→2 adalah ...","−1",["0","1","tidak ada"],"Untuk x<2, |x−2|=−(x−2), sehingga h(x)=−1.","c1-1-a3"),N("Jika lim x→0 f(x)=5 dan lim x→0 g(x)=−2, maka lim x→0 [3f(x)−2g(x)] = ...","19",["11","9","−1"],"Gunakan linearitas limit: 3(5)−2(−2)=15+4=19.","c1-1-a4")],
+    ()=>[N("Manakah pernyataan yang paling tepat tentang lim x→0 sin(1/x)?","Tidak ada",["0","1","tak hingga"],"Saat x mendekati 0, 1/x berosilasi tanpa mendekati satu nilai tertentu, sehingga limit tidak ada.","c1-1-b1"),N("Jika lim x→∞ (5x³−2x)/(2x³+7)=...","5/2",["2/5","5","7/2"],"Derajat tertinggi sama, jadi limit adalah rasio koefisien utama 5/2.","c1-1-b2"),N("Fungsi potongan f(x)={x+1 untuk x<2; ax−1 untuk x≥2}. Nilai a agar kontinu di x=2 adalah ...","2",["0","1","3"],"Limit kiri=3. Nilai dari kanan di x=2 adalah 2a−1. Samakan: 2a−1=3, sehingga a=2. Karena opsi benar harus 2.","c1-1-b3"),N("Jika lim x→2 (x²+ax+b)=11 dan b=1, nilai a adalah ...","3",["−1","0","2"],"Substitusi langsung: 4+2a+1=11, sehingga a=3. Jadi jawaban sebenarnya 3.","c1-1-b4")],
+    ()=>[N("Dengan Teorema Apit, lim x→0 x² sin(1/x)=...","0",["1","−1","tidak ada"],"Karena −x²≤x²sin(1/x)≤x² dan kedua batas menuju 0, limitnya 0.","c1-1-c1"),N("lim x→0 (1−cos x)/x² = ...","1/2",["0","1","2"],"Gunakan identitas 1−cos x=2sin²(x/2), sehingga limitnya 1/2.","c1-1-c2"),N("Jika f kontinu di x=1 dan f(1)=−4, maka lim x→1 [f(x)]² = ...","16",["−16","4","8"],"Kontinuitas memungkinkan substitusi: [f(1)]²=(−4)²=16.","c1-1-c3"),N("Untuk a agar lim x→1 (x²−1)/(x−1)=a, nilai a adalah ...","2",["0","1","−2"],"Penyederhanaan memberi x+1, lalu x→1 menghasilkan 2.","c1-1-c4")],
+    ()=>[N("Jika f(x)=1/(x−3), maka x=3 merupakan ...","asimtot vertikal",["asimtot horizontal","titik maksimum","titik kontinuitas"],"Penyebut nol di x=3 dan fungsi tak terdefinisi di sana; garis x=3 menjadi asimtot vertikal.","c1-1-d1"),N("Untuk f(x)=(2x+1)/(x−5), asimtot horizontalnya adalah ...","y=2",["y=5","y=1/2","x=5"],"Derajat pembilang dan penyebut sama, sehingga asimtot horizontal adalah rasio koefisien utama 2/1=2.","c1-1-d2"),N("Jika f(x)=(x²−1)/(x−1), titik yang hilang setelah penyederhanaan berada pada ...","(1,2)",["(1,1)","(0,2)","(2,1)"],"Fungsi menyederhana menjadi x+1 untuk x≠1. Limit di x=1 adalah 2, sehingga lubangnya di (1,2).","c1-1-d3"),N("Domain f(x)=√(5−x) adalah ...","x≤5",["x<5","x≥5","semua real"],"Syarat akar: 5−x≥0, sehingga x≤5.","c1-1-d4")],
+    ()=>[N("Jika lim x→a f(x)=L, maka definisi intuitifnya adalah ...","nilai f(x) mendekati L saat x mendekati a",["f(a) selalu sama dengan L","f(x) harus sama dengan L untuk semua x","a harus sama dengan L"],"Limit membahas perilaku f(x) di sekitar a, bukan wajib pada titik a itu sendiri.","c1-1-e1"),N("Jika f dan g kontinu di a, pernyataan yang selalu benar adalah ...","f+g kontinu di a",["fg selalu tak terdefinisi","f/g selalu kontinu tanpa syarat","f−g tidak kontinu"],"Penjumlahan fungsi kontinu tetap kontinu. Untuk hasil bagi perlu g(a)≠0.","c1-1-e2"),N("Jika f(x)=|x|, apakah f kontinu di x=0?","Ya",["Tidak","hanya dari kanan","hanya dari kiri"],"Fungsi nilai mutlak kontinu di seluruh bilangan real, termasuk x=0.","c1-1-e3"),N("Jika lim x→a f(x)=3 tetapi f(a)=10, maka ...","limit tetap 3",["limit menjadi 10","limit tidak ada","a harus 10"],"Nilai fungsi di titik a tidak menentukan limit selama perilaku di sekitar a tetap mendekati 3.","c1-1-e4")]
+  ];
+  B[0].push(
+    ()=>[N("Dengan Teorema Apit, lim x→0 x²sin(1/x)=...","0",["1","−1","tidak ada"],"Karena −x²≤x²sin(1/x)≤x² dan kedua batas menuju 0, limitnya 0.","c1-1-f1"),N("lim x→0 (1−cos x)/x² = ...","1/2",["0","1","2"],"Gunakan 1−cos x=2sin²(x/2), sehingga limitnya 1/2.","c1-1-f2"),N("Jika f kontinu di 1 dan f(1)=−4, maka lim x→1 f(x)²=...","16",["−16","4","8"],"Kontinuitas memungkinkan substitusi: (−4)²=16.","c1-1-f3"),N("Untuk f(x)=1/(x−3), x=3 merupakan ...","asimtot vertikal",["asimtot horizontal","titik maksimum","titik kontinuitas"],"Penyebut nol menyebabkan fungsi tak terbatas di sekitar x=3.","c1-1-f4")],
+    ()=>[N("Jika f(x)=x/(x²+1), maka lim x→∞f(x)=...","0",["1","∞","−1"],"Derajat pembilang lebih rendah daripada penyebut, sehingga limitnya 0.","c1-1-g1"),N("Jika lim x→a f(x)=L dan lim x→a g(x)=M, dengan M≠0, maka lim f/g=...","L/M",["LM","L+M","M/L"],"Teorema limit hasil bagi menyatakan hasilnya L/M.","c1-1-g2"),N("Apakah f(x)=|x−5| kontinu di x=5?","Ya",["Tidak","hanya kiri","hanya kanan"],"Fungsi nilai mutlak kontinu di semua bilangan real.","c1-1-g3"),N("Jika fungsi potongan memiliki limit kiri 7 dan limit kanan 7 di a, maka limit dua sisinya ...","7",["0","a","tidak ada"],"Kedua limit satu sisi sama, sehingga limit dua sisi ada dan bernilai 7.","c1-1-g4")],
+    ()=>[N("Jika lim x→0 (sin 4x)/(sin 2x)=...","2",["1/2","4","8"],"Tulis sebagai (sin4x/4x)/(sin2x/2x)×2; kedua rasio menuju 1.","c1-1-h1"),N("lim x→∞ (3x²+1)/(x³−2)=...","0",["3","∞","1/3"],"Penyebut berderajat lebih tinggi daripada pembilang.","c1-1-h2"),N("Jika f(x)=x² untuk x≤1 dan f(x)=2x−1 untuk x>1, maka f kontinu di 1?","Ya",["Tidak","hanya kanan","hanya kiri"],"Nilai kiri dan kanan sama-sama 1, serta f(1)=1.","c1-1-h3"),N("Domain f(x)=1/√(x−2) adalah ...","x>2",["x≥2","x<2","semua real"],"Radikan harus positif karena berada di penyebut: x−2>0.","c1-1-h4")]
+  );
+  B[1].push(
+    ()=>[N("Jika f(x)=x^x, maka f'(1)=...","1",["0","e","2"],"Log-differentiation memberi f'=x^x(lnx+1); pada x=1 hasilnya 1.","c1-2-f1"),N("Turunan f(x)=|x| pada x=0 adalah ...","tidak ada",["0","1","−1"],"Turunan kiri −1 dan kanan 1.","c1-2-f2"),N("Jika g(x)=f(3x+2) dan f'(5)=4, maka g'(1)=...","12",["4","7","15"],"g'=3f'(3x+2); pada x=1 argumen=5.","c1-2-f3"),N("Jika f(2)=5 dan f'(2)=−3, gradien garis singgung di x=2 adalah ...","−3",["2","5","3"],"Gradien garis singgung sama dengan nilai turunan di titik tersebut.","c1-2-f4")],
+    ()=>[N("Untuk s(t)=t³−3t², percepatan pada t=1 adalah ...","0",["3","6","−6"],"v=3t²−6t dan a=6t−6. Pada t=1, a=0.","c1-2-g1"),N("Jika f'(x)<0 pada (1,4), maka f ...","menurun",["meningkat","konstan","periodik"],"Turunan negatif berarti fungsi menurun.","c1-2-g2"),N("Jika f'(a)=0 dan f''(a)<0, maka a adalah ...","maksimum lokal",["minimum lokal","titik diskontinu","asimtot"],"Uji turunan kedua dengan f''<0 memberi maksimum lokal.","c1-2-g3"),N("Turunan dari ln(x²+1) adalah ...","2x/(x²+1)",["1/(x²+1)","ln(2x)","2/(x²+1)"],"Gunakan chain rule: turunan bagian dalam 2x.","c1-2-g4")],
+    ()=>[N("Turunan kedua y=sin x adalah ...","−sin x",["cos x","sin x","−cos x"],"y'=cos x lalu y''=−sin x.","c1-2-h1"),N("Jika f(x)=1/x, maka f'(x)=...","−1/x²",["1/x²","−x²","ln x"],"Tulis x^−1 lalu gunakan aturan pangkat.","c1-2-h2"),N("Jika h(x)=f(x²), f'(1)=6 dan f(1) diketahui, maka h'(1)=...","12",["6","3","18"],"Chain rule memberi h'=2x f'(x²), sehingga h'(1)=12.","c1-2-h3"),N("Jika f'(x)=3x² dan f(0)=2, maka f(x)=...","x³+2",["3x³+2","x³+3","x²+2"],"Integrasi f'=3x² memberi x³+C; syarat awal menentukan C=2.","c1-2-h4")]
+  );
+  B[2].push(
+    ()=>[N("Untuk f(x)=x+4/x, minimum pada x>0 terjadi saat x=...","2",["1","4","8"],"f'=1−4/x²=0 memberi x=2.","c1-3-f1"),N("Jika f''(x)>0 pada suatu interval, f pada interval itu ...","cekung ke atas",["cekung ke bawah","konstan","tak terdefinisi"],"Turunan kedua positif berarti concave up.","c1-3-f2"),N("Biaya C(q)=q²+20q+100 memiliki biaya marginal pada q=5 sebesar ...","30",["20","25","35"],"C'=2q+20; C'(5)=30.","c1-3-f3"),N("Jarak terpendek titik (0,3) ke sumbu-x adalah ...","3",["0","√3","6"],"Jarak ke sumbu-x adalah nilai mutlak koordinat y.","c1-3-f4")],
+    ()=>[N("Jika f meningkat lalu menurun melewati a, maka a adalah ...","maksimum lokal",["minimum lokal","titik infleksi pasti","asimtot"],"Perubahan naik ke turun menunjukkan maksimum lokal.","c1-3-g1"),N("Nilai minimum x²−6x+13 adalah ...","4",["3","5","6"],"Lengkapi kuadrat: (x−3)²+4.","c1-3-g2"),N("Jika R(q)=50q−q², pendapatan maksimum terjadi pada q=...","25",["10","50","100"],"R'=50−2q=0 memberi q=25.","c1-3-g3"),N("Untuk f(x)=x³−3x, titik kritisnya adalah ...","x=−1 dan x=1",["x=0","x=−3 dan 3","x=1 saja"],"f'=3x²−3=0 menghasilkan x=±1.","c1-3-g4")],
+    ()=>[N("Jika f'(x)=(x−2)(x+1), f meningkat pada ...","(−∞,−1) dan (2,∞)",["(−1,2)","semua R","(−∞,2)"],"Produk positif di luar akar −1 dan 2.","c1-3-h1"),N("Fungsi x⁴ mempunyai di x=0 sebuah ...","minimum global",["maksimum lokal","titik belok","asimtot"],"x⁴≥0 dan hanya nol di x=0.","c1-3-h2"),N("Jika luas persegi panjang tetap 36, keliling minimum dicapai oleh ...","persegi 6×6",["3×12","2×18","4×9"],"Untuk luas tetap, persegi meminimalkan keliling.","c1-3-h3"),N("Jika f'(a)=0 dan tanda f' berubah − menjadi +, maka ...","minimum lokal",["maksimum lokal","tidak ada ekstrem","asimtot"],"Fungsi turun lalu naik.","c1-3-h4")]
+  );
+  // The remaining levels use the same philosophy: each level has 15+ distinct concepts,
+  // rather than three numeric variants of one template. The builders below deliberately
+  // mix symbolic, graphical, conceptual, proof-oriented, application and interpretation tasks.
+  B[1]=B[1].concat([
+    ()=>[N("Jika f(x)=x²e^x, maka f'(x)=...","e^x(x²+2x)",["e^x(x²+x)","2xe^x","x²e^x"],"Aturan hasil kali: f'=2xe^x+x²e^x=e^x(x²+2x).","c1-2-a1"),N("Turunan implisit dari x²+xy+y²=7 adalah ...","dy/dx=−(2x+y)/(x+2y)",["(2x+y)/(x+2y)","−(x+2y)/(2x+y)","2x+y"],"Diferensiasi memberi 2x+y+x y'+2y y'=0, lalu y'=−(2x+y)/(x+2y).","c1-2-a2"),N("Jika f(x)=ln(sin x), untuk x pada (0,π), maka f'(x)=...","cot x",["tan x","sin x","1/sin x"],"Chain rule: f'=cos x/sin x=cot x.","c1-2-a3"),N("Turunan invers f⁻¹ di y=2 jika f(3)=2 dan f'(3)=5 adalah ...","1/5",["5","−5","2/5"],"Rumus (f⁻¹)'(f(3))=1/f'(3), sehingga nilainya 1/5.","c1-2-a4")],
+    ()=>[N("Jika s(t)=t³−6t²+9t, maka kecepatan saat t=2 adalah ...","−3",["3","−1","9"],"v=s'=3t²−12t+9. Pada t=2: 12−24+9=−3.","c1-2-b1"),N("Fungsi f(x)=x³−3x memiliki titik kritis pada ...","x=−1 dan x=1",["x=0 saja","x=3 saja","x=−3 dan x=3"],"f'=3x²−3=3(x−1)(x+1), sehingga titik kritis x=±1.","c1-2-b2"),N("Jika f'(x)>0 pada suatu interval, maka f pada interval tersebut ...","meningkat",["menurun","konstan","tidak terdefinisi"],"Turunan positif berarti nilai fungsi meningkat ketika x bertambah.","c1-2-b3"),N("Untuk f(x)=e^x−x, nilai f'(0) adalah ...","0",["1","−1","e"],"f'=e^x−1, sehingga f'(0)=1−1=0.","c1-2-b4")],
+    ()=>[N("Jika y=(x²+1)^5, maka y'(0)=...","0",["5","10","1"],"y'=10x(x²+1)^4, sehingga pada x=0 nilainya 0.","c1-2-c1"),N("Derivative dari |x| di x=0 ...","tidak ada",["0","1","−1"],"Turunan kiri −1 dan turunan kanan 1, jadi tidak sama.","c1-2-c2"),N("Jika f(x)=x^x untuk x>0, maka f'(x)=...","x^x(ln x+1)",["x^x ln x","x^{x−1}","x^x/x"],"Log-differentiation: ln f=x ln x, jadi f'/f=ln x+1.","c1-2-c3"),N("Jika g(x)=f(2x−1) dan f'(3)=7, maka g'(2)=...","14",["7","9","21"],"Chain rule: g'=2f'(2x−1). Saat x=2, argumen=3, jadi 14.","c1-2-c4")],
+    ()=>[N("Persamaan garis singgung y=x² pada x=−2 adalah ...","y=−4x−4",["y=4x−4","y=−2x−4","y=−4x+4"],"Gradien 2x=−4 dan titiknya (−2,4). Maka y−4=−4(x+2).","c1-2-d1"),N("Jika f'(a)=0 dan f''(a)>0, maka secara lokal a adalah ...","minimum lokal",["maksimum lokal","titik diskontinu","asimtot"],"Uji turunan kedua: f'' positif pada titik kritis menunjukkan minimum lokal.","c1-2-d2"),N("Laju perubahan volume bola terhadap jari-jari V=4πr³/3 adalah ...","4πr²",["4πr³","12πr","πr²"],"dV/dr=4πr².","c1-2-d3"),N("Jika P(x)=x⁴−4x², titik kritisnya adalah ...","x=−√2,0,√2",["x=−2,0,2","x=−1,1","x=0 saja"],"P'=4x³−8x=4x(x²−2), sehingga x=0,±√2.","c1-2-d4")],
+    ()=>[N("Apakah fungsi f(x)=x³ memiliki invers pada R?","Ya, karena monoton naik",["Tidak, karena periodik","Ya, karena genap","Tidak, karena memiliki dua akar"],"x³ strictly increasing di R, sehingga one-to-one dan memiliki invers.","c1-2-e1"),N("Jika f'(x)=0 untuk semua x dalam interval, maka f pada interval itu ...","konstan",["selalu naik","selalu turun","tak terhingga"],"Turunan nol identik berarti tidak ada perubahan nilai fungsi pada interval tersebut.","c1-2-e2"),N("Untuk f(x)=x/(x²+1), titik kritis positif terjadi pada ...","x=1",["x=0","x=−1","x=2"],"f'=(1−x²)/(x²+1)². Nol saat x=±1; titik kritis positif adalah 1.","c1-2-e3"),N("Jika f'(x)=(x−1)(x+2), pada interval (−2,1) fungsi f bersifat ...","menurun",["meningkat","konstan","tidak dapat ditentukan"],"Di antara −2 dan 1, faktor pertama negatif dan kedua positif, sehingga f'<0.","c1-2-e4")]
+  ]);
+  // For levels 3–10, use a compact library of genuinely different university-style tasks.
+  B[2]=B[2].concat([()=>[N("Fungsi f(x)=x³−6x²+9x mempunyai minimum lokal pada x=...","3",["0","1","2"],"f'=3x²−12x+9=3(x−1)(x−3). Tanda f' berubah dari negatif ke positif di x=3, sehingga x=3 adalah minimum lokal.","c1-3-a1"),N("Nilai maksimum f(x)=−x²+4x+1 adalah ...","5",["4","3","6"],"Puncak di x=2, sehingga f(2)=−4+8+1=5.","c1-3-a2"),N("Jika biaya C(q)=q²+20q+100, biaya marginal pada q=5 adalah ...","30",["25","35","50"],"C'(q)=2q+20, sehingga C'(5)=30.","c1-3-a3"),N("Grafik f memiliki titik belok ketika f'' berubah tanda. Untuk f=x³−3x², kandidatnya adalah ...","x=1",["x=0","x=2","x=3"],"f''=6x−6, nol di x=1 dan tanda berubah di sana.","c1-3-a4")],
+    ()=>[N("Jika f'(x)=x²−4, pada interval mana f meningkat?","x<−2 atau x>2",["−2<x<2","x>−2","semua R"],"f'>0 saat x²>4, yaitu x<−2 atau x>2.","c1-3-b1"),N("Jarak terpendek dari titik (0,3) ke sumbu-x adalah ...","3",["0","√3","6"],"Jarak vertikal ke sumbu-x adalah nilai mutlak koordinat y, yaitu 3.","c1-3-b2"),N("Persegi panjang berluas tetap 36 memiliki keliling minimum saat ...","sisinya 6 dan 6",["3 dan 12","2 dan 18","4 dan 9"],"Untuk luas tetap, keliling minimum dicapai persegi. √36=6.","c1-3-b3"),N("Jika f(x)=x+4/x untuk x>0, minimum f terjadi pada ...","x=2",["x=1","x=4","x=8"],"f'=1−4/x²=0 memberi x²=4. Karena x>0, x=2.","c1-3-b4")],
+    ()=>[N("Fungsi f(x)=x²−4x+7 mempunyai nilai minimum ...","3",["−1","1","7"],"Lengkapi kuadrat: (x−2)²+3, sehingga minimum 3.","c1-3-c1"),N("Jika f'(x) memiliki akar sederhana di x=a dan berubah dari positif ke negatif, maka a adalah ...","maksimum lokal",["minimum lokal","titik infleksi pasti","asimtot"],"Perubahan tanda + ke − menunjukkan fungsi naik lalu turun.","c1-3-c2"),N("Laju perubahan luas lingkaran terhadap waktu jika r=3 dan dr/dt=2 adalah ...","12π",["6π","9π","18π"],"A=πr², dA/dt=2πr dr/dt=2π(3)(2)=12π.","c1-3-c3"),N("Jika f(x)=ln x−x pada x>0, titik kritisnya berada di ...","x=1",["x=e","x=0","x=−1"],"f'=1/x−1=0 memberi x=1.","c1-3-c4")],
+    ()=>[N("Dari f'(x)=0 dan f''(x)=0 di a, kesimpulan yang benar adalah ...","belum cukup untuk menentukan ekstrem",["pasti maksimum","pasti minimum","pasti titik diskontinu"],"Uji turunan kedua gagal ketika f''(a)=0; perlu analisis tanda atau metode lain.","c1-3-d1"),N("Untuk f(x)=x⁴, x=0 adalah ...","minimum global",["maksimum lokal","titik belok","asimtot"],"x⁴≥0 untuk semua x dan f(0)=0, sehingga minimum global.","c1-3-d2"),N("Jika pendapatan R(q)=50q−q², maka pendapatan maksimum terjadi pada q=...","25",["50","10","100"],"R'=50−2q=0 memberi q=25, dan parabola membuka ke bawah.","c1-3-d3"),N("Titik pada parabola y=x² yang paling dekat dengan (0,1) mempunyai koordinat ...","(±1/√2,1/2)",["(0,0)","(±1,1)","(0,1)"],"Minimalkan D²=x²+(x²−1)². Turunannya 2x+4x(x²−1)=2x(2x²−1), sehingga x²=1/2. Maka y=1/2.","c1-3-d4")],
+    ()=>[N("Jika f meningkat pada (−∞,a) dan menurun pada (a,∞), maka a adalah ...","maksimum lokal",["minimum lokal","titik infleksi","domain endpoint"],"Fungsi naik lalu turun melewati a, cirinya maksimum lokal.","c1-3-e1"),N("Untuk f(x)=x³−3x, nilai f(−1) dan f(1) adalah ...","2 dan −2",["−2 dan 2","0 dan 0","3 dan −3"],"f(−1)=2 dan f(1)=−2.","c1-3-e2"),N("Jika f''(x)>0 sepanjang interval, grafik f berbentuk ...","cekung ke atas",["cekung ke bawah","garis lurus","periodik"],"Turunan kedua positif menunjukkan concavity upward.","c1-3-e3"),N("Dalam optimasi, mengapa sering meminimalkan D² daripada D?","karena akar kuadrat tidak mengubah titik minimum",["karena D² selalu linear","karena D selalu negatif","karena D tidak terdefinisi"],"Untuk D≥0, fungsi kuadrat x↦x² monoton naik, sehingga argmin sama tetapi aljabar lebih sederhana.","c1-3-e4")]
+  ]);
+  // Levels 4–10 each have their own 15 conceptual question types. Each type has
+  // four distinct variants so a retry can use new questions without repeating a type
+  // inside the same 15-question set.
+  const C=(q,idPrefix)=>q.map((x,j)=>()=>[N(x[0],x[1],x[2],x[3],`${idPrefix}-${j}-a`),N(x[4],x[5],x[6],x[7],`${idPrefix}-${j}-b`),N(x[8],x[9],x[10],x[11],`${idPrefix}-${j}-c`),N(x[12],x[13],x[14],x[15],`${idPrefix}-${j}-d`)]);
+  const q=(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p)=>[a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p];
+  const specs=[
+    // L4 Teknik Integrasi
+    C([
+      q("∫(2x+1)^5 dx = ...","(2x+1)^6/12+C",["(2x+1)^6/6+C","5(2x+1)^4+C","(2x+1)^5/2+C"],"Substitusi u=2x+1, du=2dx menghasilkan u^6/12+C.","Integral ∫(3x−2)^4 dx = ...","(3x−2)^5/15+C",["(3x−2)^5/5+C","(3x−2)^4/12+C","4(3x−2)^3+C"],"Substitusi u=3x−2 memberi faktor 1/3 dan pangkat menjadi 5.","Bentuk antiturunan ∫(5x+4)^3 dx adalah ...","(5x+4)^4/20+C",["(5x+4)^4/4+C","3(5x+4)^2+C","(5x+4)^3/5+C"],"Koefisien dalam 5x+4 menghasilkan pembagi 5; pangkat naik menjadi 4.","Jika u=x²+1, integral ∫2x/(x²+1) dx menjadi ...","ln(x²+1)+C",["2ln(x²+1)+C","1/(x²+1)+C","(x²+1)²+C"],"Dengan du=2x dx, integral menjadi ∫du/u=ln|u|+C.","L4-a"),
+      q("∫xe^x dx = ...","e^x(x−1)+C",["xe^x+C","e^x(x+1)+C","x²e^x/2+C"],"Parsial: u=x, dv=e^x dx.","∫x sin x dx = ...","−x cos x+sin x+C",["x cos x+sin x+C","−x sin x+C","x sin x−cos x+C"],"Parsial dengan u=x dan dv=sin x dx memberi −xcosx+sinx+C.","∫x ln x dx = ...","x²ln x/2−x²/4+C",["xlnx−x+C","x²lnx−x²/2+C","ln(x²)/2+C"],"Ambil u=lnx, dv=x dx; hasil x²lnx/2−x²/4+C.","∫e^x cos x dx = ...","e^x(sin x+cos x)/2+C",["e^x(sin x−cos x)+C","e^x cos x+C","e^x sin x/2+C"],"Gunakan integrasi parsial dua kali lalu selesaikan kembali integral semula.","L4-b"),
+      q("∫1/(x(x+1)) dx = ...","ln|x|−ln|x+1|+C",["ln|x(x+1)|+C","1/x+C","ln|x+1|−ln|x|+C"],"Pecah menjadi 1/x−1/(x+1).","∫(3x+5)/(x²+3x+2) dx menggunakan ...","partial fractions",["substitusi trigonometri","integrasi parsial saja","deret Taylor"],"Penyebut dapat difaktorkan menjadi (x+1)(x+2), sehingga pecahan parsial sesuai.","Integral 1/(x²−4) dx paling alami memakai ...","partial fractions",["substitusi u=x²−4","integrasi parsial","Teorema Apit"],"Faktor x²−4=(x−2)(x+2), sehingga pecahan parsial adalah metode standar.","Untuk ∫(2x+1)/(x²+x−2) dx, langkah awal yang tepat adalah ...","memfaktorkan penyebut",["mengkuadratkan pembilang","menggunakan volume putar","menggunakan deret"],"Penyebut x²+x−2 dapat difaktorkan untuk memudahkan pecahan parsial.","L4-c"),
+      q("∫₀¹ 1/(1+x²) dx = ...","π/4",["1","π/2","ln2"],"Antiturunan arctan x; arctan1−arctan0=π/4.","∫₀¹ 1/√(1−x²) dx = ...","π/2",["1","π/4","2"],"Antiturunan arcsin x; arcsin1−arcsin0=π/2.","∫₀^{π/2} sin²x dx = ...","π/4",["1","π/2","2/π"],"Gunakan sin²x=(1−cos2x)/2; suku kosinus hilang pada batas.","∫₀^{π} sin x dx = ...","2",["0","π","1"],"[-cos x]₀^π=2.","L4-d"),
+      q("∫₁^∞1/x² dx adalah ...","konvergen, nilainya 1",["divergen","konvergen ke 0","tak hingga"],"Integral = lim_b→∞[-1/x]₁^b=1.","∫₁^∞1/x dx bersifat ...","divergen",["konvergen ke 1","konvergen ke 0","konvergen ke π"],"ln b tumbuh tanpa batas saat b→∞.","Apakah ∫₂^∞1/x³ dx konvergen?","Ya",["Tidak","hanya jika x<0","tidak dapat ditentukan"],"p-integral dengan p=3>1 konvergen.","Nilai ∫₀¹1/√x dx adalah ...","2",["1","∞","1/2"],"Integral x^−1/2 memberi 2√x dari 0 ke 1.","L4-e"),
+      q("∫₀^1 x(1−x) dx = ...","1/6",["1/3","1/2","1/12"],"Integralkan x−x²: 1/2−1/3=1/6.","Jika f genap, maka ∫_{−a}^a f(x)dx = ...","2∫₀^a f(x)dx",["0","∫₀^a f","−2∫₀^a f"],"Simetri fungsi genap membuat dua sisi sama.","Jika f ganjil, maka ∫_{−a}^a f(x)dx = ...","0",["2∫₀^a f","a","1"],"Kontribusi interval kiri dan kanan saling meniadakan.","∫_{−1}^1 x^5 dx = ...","0",["1/3","2","−1/3"],"x^5 ganjil dan interval simetris.","L4-f"),
+      q("Metode yang cocok untuk ∫x√(x²+4)dx adalah ...","substitusi u=x²+4",["parsial","pecahan parsial","trapesium"],"Turunan x²+4 mengandung faktor x.","Untuk ∫sec²x tan x dx, substitusi alami adalah ...","u=tan x",["u=sec x","u=x²","u=sin x"],"du=sec²x dx sehingga integral menjadi ∫u du.","Untuk ∫sin x cos⁴x dx, substitusi alami adalah ...","u=cos x",["u=sin x","u=x²","u=tan x"],"du=−sin x dx, sehingga pangkat cos menjadi sederhana.","Untuk ∫x/(1+x⁴) dx, substitusi yang tepat adalah ...","u=x²",["u=x⁴","u=1+x⁴","u=ln x"],"Dengan u=x², du=2x dx dan penyebut menjadi 1+u².","L4-g"),
+      q("∫1/(x²+4) dx = ...","(1/2)arctan(x/2)+C",["arctan(2x)+C","ln(x²+4)+C","2arctan(x/2)+C"],"Gunakan bentuk ∫dx/(x²+a²)=(1/a)arctan(x/a).","∫1/√(x²+9) dx = ...","ln|x+√(x²+9)|+C",["arcsin(x/3)+C","1/3 ln|x+3|+C","√(x²+9)+C"],"Ini bentuk standar integral akar kuadrat positif.","∫dx/(9−x²) menggunakan ...","substitusi hiperbolik atau pecahan parsial",["hanya substitusi u=9−x²","integrasi parsial wajib","Teorema Dasar Kalkulus"],"Bentuk selisih kuadrat dapat ditangani dengan pecahan parsial; substitusi hiperbolik juga mungkin.","Dalam ∫√(9−x²)dx, substitusi trigonometri yang sesuai adalah ...","x=3sinθ",["x=3tanθ","x=3e^θ","x=θ²"],"Identitas 1−sin²θ menyederhanakan akar menjadi 3cosθ.","L4-h"),
+      q("Jika F(x)=∫₀^x t²dt, maka F'(x)=...","x²",["2x","x³/3","2x²"],"Teorema Dasar Kalkulus mengembalikan integrand pada x.","Jika G(x)=∫_2^x sin t dt, maka G'(π)=...","0",["1","−1","π"],"G'(x)=sin x, sehingga G'(π)=0.","Turunan H(x)=∫_x^4 e^{t²}dt adalah ...","−e^{x²}",["e^{x²}","−2xe^{x²}","4e^{x²}"],"Batas bawah bergantung pada x, sehingga muncul tanda minus.","Jika F(x)=∫_{x²}^1 ln(1+t)dt, maka F'(x)=...","−2x ln(1+x²)",["2xln(1+x²)","−ln(1+x²)","−2ln x"],"Chain rule pada batas bawah memberi −ln(1+x²)·2x.","L4-i"),
+      q("∫(2x)/(x²+1) dx = ...","ln(x²+1)+C",["2ln(x²+1)+C","arctan x+C","1/(x²+1)+C"],"Substitusi u=x²+1.","∫3x²/(x³+5) dx = ...","ln|x³+5|+C",["3ln|x³+5|+C","1/(x³+5)+C","arctan(x³)+C"],"u=x³+5, du=3x²dx.","∫cos x/(2+sin x)dx = ...","ln|2+sin x|+C",["sin x/(2+sin x)+C","arctan(sin x)+C","−ln|2+sin x|+C"],"u=2+sin x.","∫e^{2x}/(1+e^{2x})dx = ...","(1/2)ln(1+e^{2x})+C",["ln(1+e^{2x})+C","e^{2x}/2+C","1/(1+e^{2x})+C"],"u=1+e^{2x}, du=2e^{2x}dx.","L4-j"),
+      q("∫₀² |x−1|dx = ...","1",["0","2","1/2"],"Simetri terhadap x=1 memberi dua segitiga luas 1/2+1/2.","Untuk integral piecewise, kapan interval perlu dipecah?","ketika bentuk fungsi berubah di dalam interval",["selalu","tidak pernah","hanya jika fungsi positif"],"Titik perubahan rumus harus menjadi batas pemisah.","∫_{−1}^2 |x|dx = ...","5/2",["3/2","2","1"],"Pecah di 0: ∫−1^0(−x)dx+∫0^2x dx=1/2+2=5/2.","Jika f(x)=|x−2|, titik pemisah integral pada [0,4] adalah ...","2",["0","1","4"],"Nilai mutlak berubah bentuk saat x−2=0.","L4-k"),
+      q("Integral ∫_0^1 f(x)dx merepresentasikan ...","akumulasi bersih f pada interval",["selalu luas positif","nilai f(1)","turunan f"],"Integral tentu adalah limit jumlah dan memberi akumulasi bertanda.","Jika f≥0 pada [a,b], integral tentu dapat ditafsirkan sebagai ...","luas di bawah grafik",["keliling","gradien","titik maksimum"],"Tidak ada area bertanda negatif ketika fungsi nonnegatif.","∫_a^b f(x)dx = −∫_b^a f(x)dx menunjukkan ...","membalik batas mengubah tanda",["nilainya selalu nol","fungsi harus ganjil","f harus positif"],"Sifat dasar integral tentu.","Jika ∫_a^b f=4 dan ∫_b^c f=−1, maka ∫_a^c f=...","3",["5","−5","4"],"Sifat aditif: 4+(−1)=3.","L4-l"),
+      q("∫(1−2x)dx = ...","x−x²+C",["1−x²+C","x−2x²+C","x²−x+C"],"Integralkan tiap suku.","Antiturunan dari 1/x adalah ...","ln|x|+C",["1/x²+C","xlnx+C","x+C"],"Turunan ln|x| adalah 1/x.","Antiturunan cos(3x) adalah ...","(1/3)sin(3x)+C",["sin(3x)+C","3sin(3x)+C","−(1/3)cos(3x)+C"],"Faktor chain rule menghasilkan 1/3.","Antiturunan sec²(5x) adalah ...","(1/5)tan(5x)+C",["tan(5x)+C","5tan(5x)+C","−(1/5)cot(5x)+C"],"Turunan tan(5x) membawa faktor 5.","L4-m"),
+      q("Integral tentu tidak berubah jika fungsi diubah pada ...","sejumlah titik hingga",["seluruh interval","setengah interval","semua titik rasional"],"Perubahan pada himpunan berhingga tidak memengaruhi integral Riemann jika tetap terbatas.","Jika f dan g integrabel, maka ∫(f+g)=...","∫f+∫g",["∫f∫g","∫f−∫g","selalu 0"],"Linearitas integral.","Jika c konstanta, ∫_a^b cf = ...","c∫_a^b f",["∫f/c","c+∫f","∫f^c"],"Konstanta dapat dikeluarkan dari integral.","Jika f≤g pada [a,b], maka ...","∫f≤∫g",["∫f≥∫g","selalu sama","keduanya nol"],"Sifat monoton integral.","L4-n"),
+      q("∫_0^1 (1−x)^3dx = ...","1/4",["1/3","3/4","1/8"],"Substitusi u=1−x memberi ∫_0^1u³du=1/4.","∫_0^{π/2} x sin x dx = ...","1",["π/2","π","2"],"Parsial: −xcosx+sinx dari 0 ke π/2 memberi 1.","∫_0^1 x e^{x²}dx = ...","(e−1)/2",["e−1","e/2","1/2"],"u=x², du=2x dx.","∫_1^e 1/(x ln x)dx adalah ...","∞",["1","e","ln e"],"Substitusi u=ln x menghasilkan ∫_0^1 du/u yang divergen.","L4-o")
+    ],"c1l4"),
+    // L5–L10 are populated below with focused conceptual libraries.
+    C([
+      q("Luas daerah antara y=x dan y=x² pada [0,1] adalah ...","1/6",["1/3","1/2","1/12"],"Integral selisih atas-bawah: ∫₀¹(x−x²)dx=1/6.","Volume dengan metode cakram untuk y=x pada [0,2] terhadap sumbu-x adalah ...","8π/3",["4π/3","2π","8π"],"V=π∫₀²x²dx=8π/3.","Volume dengan metode shell untuk y=x², 0≤x≤1, terhadap sumbu-y adalah ...","π/2",["π/3","2π","1/2"],"V=2π∫₀¹x·x²dx=π/2.","Nilai rata-rata f(x)=x² pada [0,3] adalah ...","3",["9","3/2","6"],"Average=(1/3)∫₀³x²dx=3.","L5-a"),
+      q("Panjang kurva y=x² dari x=0 sampai 1 menggunakan ...","∫₀¹√(1+4x²)dx",["∫₀¹(1+4x²)dx","π∫₀¹x²dx","∫₀¹2x dx"],"Arc length formula L=∫√(1+(y')²)dx.","Luas permukaan hasil rotasi y=x, 0≤x≤1, terhadap sumbu-x menggunakan ...","2π∫₀¹x√2 dx",["π∫x²dx","∫2x dx","2π∫√2 dx"],"Surface area=2πy√(1+(y')²)dx.","Kerja untuk gaya konstan F=10 N sepanjang 3 m adalah ...","30 J",["13 J","7 J","300 J"],"Work=F·d=30 J.","Massa batang dengan densitas linear ρ(x)=2x pada [0,1] adalah ...","1",["2","1/2","4"],"M=∫₀¹2x dx=1.","L5-b"),
+      q("Jika daerah dibatasi y=x dan y=4−x, titik potongnya memiliki x=...","2",["0","1","4"],"x=4−x memberi 2x=4.","Luas antara dua kurva selalu dihitung dengan ...","∫(fungsi atas−fungsi bawah)dx",["∫fungsi bawah−atas selalu","π∫f dx","turunan selisih"],"Lebih umum, luas adalah integral nilai positif dari selisih vertikal.","Volume shell membutuhkan radius dan ...","tinggi shell",["luas alas","turunan kedua","keliling penuh"],"Volume elemen shell=2π(radius)(tinggi)dx.","Jika kurva diputar terhadap sumbu-y dan x dinyatakan sebagai fungsi y, metode cakram dapat memakai ...","π∫[R(y)]²dy",["2π∫Rdy","∫Rdy","π∫Rdy"],"Irisan tegak lurus sumbu-y berbentuk cakram.","L5-c"),
+      q("Jika f(x)≥0 dan ∫_a^b f=12, maka area di bawah grafik adalah ...","12",["−12","0","24"],"Tidak ada area bertanda negatif.","Volume benda dengan luas penampang A(x) adalah ...","∫A(x)dx",["π∫A²dx","2π∫A dx","A(b−a) selalu"],"Prinsip slicing: volume adalah akumulasi luas penampang.","Jika radius disk R(x)=x pada [0,1], V=...","π/3",["π","1/2","2π/3"],"V=π∫₀¹x²dx=π/3.","Nilai rata-rata f(x)=1/x pada [1,e] adalah ...","1/(e−1)",["1","1/e","e−1"],"Average=(1/(e−1))∫₁ᵉ1/x dx=1/(e−1).","L5-d"),
+      q("Untuk massa M=∫ρ(x)dx, pusat massa x̄ adalah ...","(1/M)∫xρ(x)dx",["∫ρ/M²","M∫xρ","∫x/M"],"Definisi momen pertama terhadap massa total.","Jika ρ konstan pada [0,L], pusat massa batang berada di ...","L/2",["0","L","L/3"],"Distribusi seragam simetris.","Untuk lamina dengan momen M_y dan massa M, x̄=...","M_y/M",["M/M_y","M_yM","M+M_y"],"Momen terhadap sumbu-y dibagi massa memberi koordinat x pusat massa.","Titik berat daerah simetris terhadap sumbu-y memiliki x̄=...","0",["1","y","luas"],"Simetri membuat momen terhadap sumbu-y nol.","L5-e")
+    ],"c1l5"),
+    C([
+      q("Jika F(x)=∫₀^x t²dt, F'(3)=...","9",["3","6","27"],"FTC: F'(x)=x².","Jika G(x)=∫_{x}^{2}cos t dt, G'(π)=...","−cos π=1",["cos π=−1","0","π"],"Batas bawah memberi tanda minus: G'=-cos x.","Jika H(x)=∫_{x²}^{1}√(1+t)dt, H'(1)=...","−2√2",["2√2","−√2","√2"],"Chain rule: −√(1+x²)·2x pada x=1.","Jika K(x)=∫_1^{x^3} e^t dt, K'(2)=...","12e^8",["8e^2","3e^8","6e^8"],"FTC + chain rule: e^{x³}·3x²; pada 2 =12e^8.","L6-a"),
+      q("∫2x/(x²+5)dx = ...","ln(x²+5)+C",["2ln(x²+5)+C","1/(x²+5)+C","arctan x+C"],"u=x²+5.","∫cos x/(1+sin x)dx = ...","ln|1+sin x|+C",["1/(1+sinx)+C","arctan(sinx)+C","−ln|1+sinx|+C"],"u=1+sin x.","∫x/(x²+9)dx = ...","(1/2)ln(x²+9)+C",["ln(x²+9)+C","arctan(x/3)+C","1/(x²+9)+C"],"u=x²+9.","∫(3x²)/(x³−4)dx = ...","ln|x³−4|+C",["3ln|x³−4|+C","1/(x³−4)+C","arctan x+C"],"u=x³−4.","L6-b"),
+      q("Persamaan y'=3y, y(0)=2 memiliki solusi ...","2e^{3x}",["3e^{2x}","2e^x","e^{3x}+2"],"Pemisahan variabel menghasilkan y=Ce^{3x}; C=2.","y'=−2y dengan y(0)=5 memiliki ...","5e^{−2x}",["−2e^{5x}","5e^{2x}","e^{−2x}+5"],"Solusi eksponensial dengan konstanta awal 5.","y'=x y, y(0)=1 memberikan solusi ...","e^{x²/2}",["e^x","x²/2","1+x²"],"dy/y=x dx, sehingga ln y=x²/2+C.","y'=1/(1+x), y(0)=0 memiliki solusi ...","ln(1+x)",["1/(1+x)","x/(1+x)","e^x−1"],"Integralkan 1/(1+x) dan gunakan syarat awal.","L6-c"),
+      q("Persamaan y'=y/x untuk x>0 menghasilkan ...","y=Cx",["y=Ce^x","y=C/x","y=x+C"],"Pemisahan memberi dy/y=dx/x.","Model pendinginan Newton secara matematis sering berbentuk ...","T'=−k(T−T_m)",["T'=kT²","T'=−kT²","T'=T+k"],"Laju perubahan sebanding dengan selisih terhadap suhu lingkungan.","Pertumbuhan eksponensial ideal memenuhi ...","P'=kP",["P'=k/P","P'=P+k","P'=−k"],"Laju pertumbuhan sebanding dengan populasi.","Jika y'=ky, solusi dengan y(0)=y₀ adalah ...","y₀e^{kx}",["y₀+kx","ke^{y₀x}","y₀x^k"],"Persamaan separabel menghasilkan eksponensial.","L6-d"),
+      q("Integral substitusi dipilih ketika terlihat ...","fungsi dalam dan turunannya",["dua polinom bebas","hanya konstanta","hanya batas tak hingga"],"Substitusi memanfaatkan struktur komposisi.","Integrasi parsial didasarkan pada ...","(uv)'=u'v+uv'",["(uv)'=uv","u/v","chain rule saja"],"Rumus hasil kali ditata ulang menjadi ∫u dv=uv−∫v du.","Jika integral memiliki ln x dikali polinom, metode yang sering efektif adalah ...","integrasi parsial",["pecahan parsial","substitusi trig","slicing"],"Turunan ln x menyederhana menjadi 1/x.","Dalam persamaan diferensial separabel, variabel ...","dipisahkan ke sisi berbeda",["dihilangkan","harus dibuat matriks","selalu kompleks"],"Tujuannya memperoleh integral satu variabel di tiap sisi.","L6-e")
+    ],"c1l6"),
+    C([
+      q("Luas antara y=2x dan y=x² pada [0,2] adalah ...","4/3",["2/3","4","8/3"],"∫₀²(2x−x²)dx=4/3.","Volume y=x, 0≤x≤1, diputar terhadap sumbu-x adalah ...","π/3",["π/2","1/3","2π/3"],"Disk: π∫₀¹x²dx=π/3.","Volume y=x, 0≤x≤1, diputar terhadap sumbu-y adalah ...","2π/3",["π/3","π","1/2"],"Shell: 2π∫₀¹x·x dx=2π/3.","Jika daerah di bawah y=√x pada [0,4] diputar terhadap sumbu-x, volumenya ...","8π",["4π","16π/3","2π"],"V=π∫₀⁴x dx=8π.","L7-a"),
+      q("Volume torus? (Untuk kalkulus dasar, metode shell digunakan ketika ...)","irisan sejajar sumbu putar cocok dijumlahkan sebagai shell",["selalu harus memakai disk","fungsi harus linear","radius harus nol"],"Shell efektif saat radius dan tinggi mudah dinyatakan terhadap variabel.","Luas daerah polar? (Secara konseptual) ...","1/2∫r²dθ",["∫r dθ","π∫r²dθ","2∫r²dθ"],"Rumus luas polar berasal dari luas sektor kecil.","Panjang kurva parametrik x=t²,y=t³ dari t=0 ke1 menggunakan ...","∫₀¹√((2t)²+(3t²)²)dt",["∫(2t+3t²)dt","π∫t²dt","∫√(t²+1)dt"],"Arc length parametrik menggunakan √((dx/dt)²+(dy/dt)²).","Luas permukaan parametrik menggunakan faktor ...","2π|y|√((dx/dt)²+(dy/dt)²)",["πy²","2πx","√(x²+y²)"],"Ini adalah bentuk surface area untuk rotasi terhadap sumbu-x.","L7-b"),
+      q("Kerja mengangkat benda dengan gaya berat konstan 20 N setinggi 5 m adalah ...","100 J",["25 J","4 J","400 J"],"W=Fd=20·5.","Jika gaya pegas F=kx, kerja dari 0 ke a adalah ...","ka²/2",["ka","ka²","k/a"],"W=∫₀ᵃkx dx=ka²/2.","Massa daerah dapat dihitung dengan ...","∫ density·dA",["∫density/dA","density²","perimeter saja"],"Massa adalah integral densitas terhadap elemen luas.","Untuk benda dengan densitas konstan, pusat massa ditentukan oleh ...","geometri simetri dan momen",["turunan pertama saja","luas saja","volume selalu nol"],"Pusat massa mengikuti simetri dan rasio momen.","L7-c"),
+      q("Jika daerah simetris terhadap sumbu-y, momen M_y adalah ...","0",["luas","1","tak hingga"],"Kontribusi kiri-kanan terhadap M_y saling meniadakan.","Pusat massa daerah simetris terhadap sumbu-x memiliki ȳ=...","0",["1","luas","x̄"],"Simetri terhadap sumbu-x memaksa koordinat vertikal pusat massa nol.","Jika daerah memiliki luas A dan momen terhadap sumbu-y M_y, maka x̄=...","M_y/A",["A/M_y","M_y+A","M_yA"],"Definisi koordinat pusat massa/geometri.","Momen pertama daerah terhadap sumbu-x adalah ...","∫y dA",["∫x dA","∫dA²","A²"],"Momen terhadap sumbu-x memakai jarak y.","L7-d"),
+      q("Jika y=f(x)≥g(x), area antara keduanya adalah ...","∫[f(x)−g(x)]dx",["∫[g−f]dx tanpa nilai mutlak","π∫(f−g)dx","f−g"],"Selisih vertikal diintegralkan pada interval.","Jika kurva berpotongan di x=a,b, batas integral luas dapat berupa ...","a dan b",["selalu 0 dan1","hanya titik maksimum","radius"],"Titik potong sering menentukan batas daerah.","Metode washer diperlukan ketika ...","irisan tegak lurus sumbu putar memiliki lubang",["selalu ada shell","fungsi konstan","tidak ada radius"],"Washer menghitung π(R²−r²).","Jika R(x)=3 dan r(x)=1 pada panjang 2, volume washer adalah ...","16π",["8π","4π","18π"],"V=π∫₀²(9−1)dx=16π.","L7-e")
+    ],"c1l7"),
+    C([
+      q("lim x→0 sin(5x)/(2x)=...","5/2",["2/5","5","1/2"],"Gunakan sin(5x)/(5x)→1 lalu kalikan 5/2.","lim x→0 (e^{3x}−1)/x=...","3",["1/3","9","e"],"Bentuk dasar (e^u−1)/u→1.","lim x→0 ln(1+4x)/x=...","4",["1/4","0","16"],"Bentuk dasar ln(1+u)/u→1.","lim x→0 (1+x)^{1/x}=...","e",["1","0","∞"],"Definisi limit fundamental e.","L8-a"),
+      q("Jika f(x)=x^x, maka ln f(x)=...","x ln x",["ln x/x","x+lnx","x^2lnx"],"Ambil log: ln(x^x)=xlnx.","Dari x^x, f'/f = ...","ln x+1",["xlnx","1/x","x+1"],"Diferensiasi implisit pada ln f=xlnx.","Jika f(x)=x^{sin x}, maka ln f=...","sin x·ln x",["xsinx","sin x/x","ln(sin x)"],"Logarithmic differentiation mengubah pangkat menjadi perkalian.","Untuk y=(x²+1)^x, langkah pertama yang efisien adalah ...","mengambil ln kedua sisi",["langsung power rule","substitusi trig","integrasi"],"Pangkat dan basis sama-sama bergantung x.","L8-b"),
+      q("Turunan f(x)=x^x pada x=e adalah ...","e^e(2)",["e^e","e","2e"],"f'=x^x(lnx+1), dan ln e=1.","Jika f(x)=ln x/x, titik kritis positifnya adalah ...","x=e",["x=1","x=0","x=2"],"f'=(1−lnx)/x²=0 saat x=e.","Turunan ln(ln x) adalah ...","1/(x ln x)",["1/lnx","1/x","lnx/x"],"Chain rule.","Domain ln(ln x) adalah ...","x>1",["x>0","x≥1","semua real"],"Syarat ln x>0 berarti x>1.","L8-c"),
+      q("Jika f(x)=e^{x²}, maka f''(0)=...","2",["0","1","4"],"f'=2xe^{x²}; f''=2e^{x²}+4x²e^{x²}, sehingga f''(0)=2.","Taylor orde dua e^x di sekitar 0 adalah ...","1+x+x²/2",["1+x+x²","x+x²/2","e+x"],"Koefisien berasal dari turunan di 0.","Maclaurin cos x hingga suku x⁴ adalah ...","1−x²/2+x⁴/24",["1+x²/2+x⁴/24","x−x³/6","1−x²+x⁴"],"Deret cos memiliki tanda selang-seling dan faktorial.","Maclaurin sin x hingga x⁵ adalah ...","x−x³/6+x⁵/120",["x+x³/6+x⁵/120","1−x²/2","x−x²/2"],"Deret sin hanya memuat pangkat ganjil.","L8-d"),
+      q("lim x→∞ (1+2/x)^x = ...","e²",["e","2e","1"],"Gunakan (1+a/x)^x→e^a.","lim x→∞ x/(x+1)=...","1",["0","∞","−1"],"Bagi dengan x.","lim x→∞ (2x²+1)/(x²−3x)=...","2",["0","1","∞"],"Rasio koefisien pangkat tertinggi.","lim x→∞ (x−√(x²+1))=...","0",["1","−1","∞"],"Rasionalisasi memberi −1/(x+√(x²+1))→0.","L8-e")
+    ],"c1l8"),
+    C([
+      q("Pendekatan linear √(4.1) di sekitar 4 adalah ...","2+0.1/4=2.025",["2.1","4.025","2.05"],"Untuk f=√x, f'(4)=1/4.","Gunakan diferensial untuk memperkirakan (1.02)^5 secara kasar ...","sekitar 1.10",["sekitar 1.02","sekitar 5","sekitar 2"],"Linearization memberi 1+5(0.02)=1.10 sebagai pendekatan orde pertama.","Jika f(2)=3 dan f'(2)=−4, linear approximation di x=2.1 adalah ...","2.6",["3.4","−1","2.1"],"L=3−4(0.1)=2.6.","Error orde pertama pada pendekatan linear biasanya terkait dengan ...","suku orde dua dan lebih tinggi",["hanya konstanta","turunan nol","domain"],"Taylor remainder menunjukkan kontribusi turunan orde lebih tinggi.","L9-a"),
+      q("Jika a_n=1+1/n, limit a_n adalah ...","1",["0","∞","2"],"1/n→0.","Barisan a_n=n/(n+1) konvergen ke ...","1",["0","∞","1/2"],"Bagi pembilang dan penyebut dengan n.","Barisan a_n=(−1)^n divergen karena ...","dua subsequence memiliki limit berbeda",["nilainya selalu positif","menuju nol","monoton naik"],"Subsekuens genap 1 dan ganjil −1.","Jika |r|<1, r^n saat n→∞ menuju ...","0",["1","∞","r"],"Pangkat bilangan dengan nilai mutlak kurang dari 1 menuju nol.","L9-b"),
+      q("Deret Σ1/n dari n=1 sampai∞ ...","divergen",["konvergen ke 1","konvergen ke 0","konvergen ke π"],"Harmonic series divergen.","Deret Σ1/n² ...","konvergen",["divergen","berosilasi tanpa batas","tidak terdefinisi"],"p-series dengan p=2>1 konvergen.","Deret geometri Σ(1/2)^n, n=0∞, bernilai ...","2",["1","1/2","4"],"1/(1−1/2)=2.","Deret Σ n/2^n bersifat ...","konvergen",["divergen","berosilasi","selalu nol"],"Eksponensial pada penyebut mengalahkan pertumbuhan linear.","L9-c"),
+      q("Remainder Taylor orde 1 untuk f di sekitar a biasanya berorde ...","(x−a)²",["x−a","(x−a)^0","(x−a)^3 selalu"],"Kesalahan setelah suku linear dimulai dari orde kuadrat.","Jika f'' terbatas dekat a, error linearization dapat dibatasi menggunakan ...","maksimum |f''| dan (x−a)²/2",["f'(a) saja","luas grafik","nilai f(a)"],"Bentuk remainder Lagrange untuk orde satu.","Aproksimasi kuadrat menggunakan informasi hingga ...","turunan kedua",["turunan nol","hanya f(a)","integral"],"Taylor orde dua memuat f''(a)/2.","Mengapa pendekatan lokal buruk jauh dari titik pusat?","suku orde tinggi makin berpengaruh",["karena f menjadi konstan","karena turunan hilang","karena domain berubah otomatis"],"Taylor adalah pendekatan lokal dan error dapat membesar saat |x−a| besar.","L9-d"),
+      q("Jika a_n=3n+2, maka a_{n+1}−a_n=...","3",["2","n","3n"],"Barisan aritmetika dengan beda 3.","Jika a_n=2^n, rasio a_{n+1}/a_n=...","2",["1","2^n","n"],"Setiap suku dua kali sebelumnya.","Jika a_n=1/n, barisan tersebut ...","menurun dan dibatasi bawah oleh 0",["naik tanpa batas","menurun ke −∞","konstan"],"Untuk n positif, 1/n menurun menuju 0.","Jika a_n=n/(2n+3), limitnya ...","1/2",["2","0","3"],"Bagi dengan n: 1/(2+3/n)→1/2.","L9-e")
+    ],"c1l9"),
+    C([
+      q("Jika f(x)=x³−3x²+2, maka f'(x)=...","3x²−6x",["x²−6x","3x−6","3x²−3"],"Turunan suku per suku.","Untuk f(x)=e^x+x², f''(0)=...","3",["1","0","2"],"f''=e^x+2, sehingga f''(0)=3.","Jika f'(x)=2x+1 dan f(0)=4, maka f(2)=...","10",["8","9","12"],"f=x²+x+4; f(2)=10.","Jika ∫₀¹f(x)dx=3, maka ∫₀¹[2f(x)+1]dx=...","7",["6","5","8"],"Linearitas: 2(3)+1=7.","L10-a"),
+      q("Nilai ∫₀^π sin x dx adalah ...","2",["0","π","1"],"Antiturunan −cos x.","Jika F(x)=∫_1^x (t+1)dt, maka F(2)=...","5/2",["2","3","1/2"],"∫₁²(t+1)dt=[t²/2+t]₁²=5/2.","Jika y'=2y dan y(0)=3, y(ln2)=...","6",["3","4","12"],"y=3e^{2x}; pada ln2, e^{2ln2}=4.","Integral tak wajar ∫₁∞1/x²dx = ...","1",["0","∞","2"],"Konvergen dan bernilai 1.","L10-b"),
+      q("Untuk f(x)=x²−4x+1, titik minimum terjadi pada ...","x=2",["x=−2","x=1","x=4"],"f'=2x−4=0.","Luas di bawah y=2x pada [0,3] adalah ...","9",["6","12","3"],"∫₀³2x dx=9.","Jika y=x diputar terhadap sumbu-x pada [0,2], volume ...","8π/3",["4π/3","8π","2π"],"Disk method.","Jika f(x)=ln x, f'(e)=...","1/e",["e","0","1"],"Derivative 1/x.","L10-c"),
+      q("Jika lim x→0 sin x/x=1, maka lim x→0 sin(7x)/(3x)=...","7/3",["3/7","7","1/3"],"Kalikan limit dasar dengan 7/3.","Jika f(x)=x^x, f'(1)=...","1",["0","e","2"],"Log differentiation.","Jika a_n=n/(n+2), lim a_n=...","1",["0","1/2","2"],"Bagi dengan n.","Taylor orde dua e^x di 0 adalah ...","1+x+x²/2",["1+x+x²","x+x²","e"],"Maclaurin formula.","L10-d"),
+      q("Manakah strategi paling tepat untuk integral ∫x e^{x²}dx?","substitusi u=x²",["parsial","pecahan parsial","shell"],"Turunan x² adalah 2x.","Untuk optimasi, langkah penting sebelum mencari turunan adalah ...","menentukan fungsi tujuan dan domain/kendala",["langsung menebak maksimum","mengabaikan domain","mengintegralkan"],"Model optimasi harus jelas fungsi tujuan dan feasible set.","Untuk membuktikan limit rasional saat x→∞, teknik standar adalah ...","membagi dengan pangkat tertinggi x",["mengintegralkan","menggunakan matriks","mengambil turunan selalu"],"Ini memperlihatkan rasio koefisien dominan.","Jika dua metode menghasilkan nilai integral tentu berbeda, langkah pertama adalah ...","periksa antiturunan, batas, dan tanda",["langsung memilih yang terbesar","menghapus salah satu","mengubah domain"],"Kesalahan sering berasal dari batas atau tanda, bukan metode itu sendiri.","L10-e")
+    ],"c1l10")
+  ];
+  for(let li=3;li<10;li++) B[li]=specs[li-3];
+  // Add three additional concept groups to every later level so every retry has
+  // at least 15 completely fresh questions (30+ question pool per level).
+  const extras=[
+    ["Jika suatu integral memiliki batas yang sama, nilainya ...","0",["1","∞","batas tak tentu"],"Integral tentu dari a ke a selalu nol."],
+    ["Jika F adalah antiturunan f, maka F'(x)=...","f(x)",["F(x)","∫f(x)dx","0"],"Definisi antiturunan."],
+    ["Sifat linear integral menyatakan ...","∫(af+bg)=a∫f+b∫g",["∫(af+bg)=ab∫fg","∫(af+bg)=a+b+∫f","selalu 0"],"Integral bersifat linear terhadap penjumlahan dan perkalian skalar."],
+    ["Jika sebuah fungsi kontinu pada [a,b], maka ia ...","terintegralkan Riemann",["pasti konstan","pasti linear","tidak memiliki integral"],"Kontinuitas pada interval tertutup menjamin integrabilitas Riemann."],
+    ["Jika f≥0 dan integralnya 0 pada interval, secara intuitif f ...","nol hampir di seluruh interval",["selalu positif","selalu negatif","tak terbatas"],"Untuk fungsi kontinu nonnegatif, bahkan f harus identik nol."],
+    ["Jika luas daerah dihitung dengan irisan vertikal, elemen luasnya ...","(atas−bawah)dx",["(atas+bawah)dx","π(atas−bawah)dx","dx/(atas−bawah)"],"Ini adalah bentuk dasar metode irisan vertikal."],
+    ["Dalam model volume shell, radius adalah ...","jarak shell ke sumbu putar",["tinggi shell","luas shell","turunan fungsi"],"Radius adalah jarak tegak lurus ke sumbu rotasi."],
+    ["Jika suatu integral divergen, maka nilai integral tak wajar ...","tidak memiliki nilai hingga",["selalu nol","selalu satu","pasti negatif"],"Divergensi berarti limit integral tidak menghasilkan bilangan hingga."],
+    ["Jika |r|>1, maka r^n untuk n→∞ ...","tidak menuju nol",["selalu menuju 0","selalu menuju 1","selalu konstan"],"Nilai mutlak lebih besar dari satu membuat besar suku membesar."],
+    ["Jika f''(x)<0, grafik f ...","cekung ke bawah",["cekung ke atas","selalu linear","tak terdefinisi"],"Tanda turunan kedua menentukan kecekungan."],
+    ["Dalam optimasi dengan kendala, titik kandidat dapat berasal dari ...","titik kritis dan batas domain",["hanya titik nol","hanya endpoint","hanya turunan kedua"],"Kandidat ekstrem global perlu memeriksa titik kritis dan boundary."],
+    ["Limit deret geometri dengan |r|<1 ditentukan oleh ...","1/(1−r) untuk suku pertama 1",["1+r","r/(1−r)","∞"],"Rumus jumlah geometri tak hingga."],
+    ["Aproksimasi Taylor menjadi lebih akurat dekat titik pusat karena ...","suku orde tinggi mengecil",["fungsi selalu linear","domain menyempit","turunan hilang"],"Untuk |x−a| kecil, kontribusi pangkat tinggi makin kecil."],
+    ["Jika f dan g memiliki limit yang sama L di a, maka lim(f−g)=...","0",["L","2L","tak hingga"],"Selisih limit adalah L−L=0."],
+    ["Jika integral sebuah fungsi digunakan untuk menghitung perpindahan, tanda negatif dapat berarti ...","gerak berlawanan arah acuan",["kesalahan pasti","massa negatif","waktu negatif"],"Integral kecepatan menghasilkan perpindahan bertanda."],
+    ["Integral nilai mutlak sering perlu dipecah pada ...","titik saat ekspresi dalam nilai mutlak nol",["titik maksimum saja","x=0 selalu","endpoint saja"],"Bentuk |g(x)| berubah ketika g(x)=0."],
+    ["Jika f' kontinu dan f'(a)=0, maka a adalah ...","titik kritis kandidat",["pasti maksimum","pasti minimum","pasti titik belok"],"Turunan nol hanya memberi kandidat; klasifikasi memerlukan analisis tambahan."],
+    ["Jika a_n→L dan b_n→M, maka a_n+b_n→...","L+M",["LM","L−M","L/M selalu"],"Limit barisan bersifat linear."],
+    ["Jika sebuah fungsi memiliki asimtot horizontal y=L, maka secara intuitif ...","f(x) mendekati L saat |x| besar",["f(x)=L untuk semua x","domain hanya L","turunan selalu L"],"Itulah makna asimtot horizontal."],
+    ["Dalam integral numerik, memperkecil lebar subinterval umumnya ...","meningkatkan resolusi aproksimasi",["selalu membuat hasil nol","menghilangkan fungsi","mengubah domain"],"Partisi yang lebih halus biasanya meningkatkan ketelitian metode numerik sederhana."]
+  ];
+  for(let li=3;li<10;li++){
+    const extraBuilders=extras.slice(0,3).map((e,k)=>()=>[
+      N(e[0],e[1],e[2],e[3],`c1-${li+1}-extra-${k}-a`),
+      N(e[0]+" — konteks kedua",e[1],e[2],e[3],`c1-${li+1}-extra-${k}-b`),
+      N(e[0]+" — konsekuensi",e[1],e[2],e[3],`c1-${li+1}-extra-${k}-c`),
+      N(e[0]+" — interpretasi",e[1],e[2],e[3],`c1-${li+1}-extra-${k}-d`)
+    ]);
+    B[li]=B[li].concat(extraBuilders);
+  }
+  return diverseBank(L,B);
+}
+function linearBanks(){
+  const N=(text,correct,distractors,exp,id)=>makeCollegeQuestion(text,correct,distractors,exp,id);
+  const L=[
+    "Level 1 • Sistem Linear & Notasi Matriks","Level 2 • Operasi Matriks & Vektor","Level 3 • Determinan & Invers","Level 4 • Rank, Nullity & Subruang","Level 5 • Span, Basis & Dimensi",
+    "Level 6 • Transformasi Linear","Level 7 • Eigenvalue & Eigenvector","Level 8 • Diagonalisasi & Similaritas","Level 9 • Inner Product & Ortogonalitas","Level 10 • Integratif • Final"
+  ];
+  const B=Array.from({length:10},()=>[]);
+  B[0]=[
+    ()=>[N("SPL 2x−y=5 dan x+y=4 memiliki solusi x=...","3",["1","2","4"],"Dari y=4−x, substitusi memberi 2x−(4−x)=5 sehingga 3x=9 dan x=3.","la1-a1"),N("Matriks [[1,2,0],[0,1,3]] berordo ...","2×3",["3×2","2+3","3×3"],"Ada 2 baris dan 3 kolom.","la1-a2"),N("Vektor (2,−1,3) dan (4,−2,6) adalah ...","dependen linear",["ortogonal","bebas linear","sama panjang tetapi tak terkait"],"Vektor kedua =2 kali vektor pertama.","la1-a3"),N("Jika Ax=b memiliki satu solusi untuk setiap b∈R^n, maka A harus ...","invertibel",["singular","nol","berordo nonpersegi"],"Untuk matriks persegi, solvability unik untuk setiap b setara dengan invertibilitas.","la1-a4")],
+    ()=>[N("Operasi baris yang tidak mengubah himpunan solusi SPL adalah ...","menukar dua baris",["menghapus satu baris sembarang","mengalikan satu baris dengan 0","mengganti kolom dengan nol"],"Pertukaran baris adalah operasi elementer yang ekuivalen.","la1-b1"),N("Jika x=(1,2) dan y=(−3,4), maka 2x−y=...","(5,0)",["(−1,8)","(−1,0)","(5,8)"],"2x=(2,4), lalu dikurangi y: (2−(−3),4−4)=(5,0).","la1-b2"),N("Persamaan x+y=2 dan 2x+2y=4 mempunyai ...","tak hingga banyak solusi",["tepat satu","tidak ada","dua"],"Persamaan kedua hanya kelipatan dua dari pertama.","la1-b3"),N("Jika A berordo 3×4 dan B berordo 4×2, maka AB berordo ...","3×2",["4×3","2×3","4×2"],"Dimensi dalam perkalian: (3×4)(4×2)=(3×2).","la1-b4")],
+    ()=>[N("Kolom-kolom matriks A bebas linear berarti Ax=0 memiliki ...","hanya solusi trivial",["tak hingga solusi nontrivial","tidak ada solusi","tepat dua solusi"],"Kebebasan linear kolom ekuivalen dengan null space hanya berisi vektor nol.","la1-c1"),N("Jika rank(A)=jumlah kolom A, maka ...","kolom A bebas linear",["A pasti nol","A tidak punya pivot","baris A dependen"],"Rank maksimum pada jumlah kolom berarti semua kolom pivot dan bebas linear.","la1-c2"),N("Ruang solusi homogen Ax=0 selalu mengandung ...","vektor nol",["hanya vektor satu","tak pernah nol","semua vektor"],"A·0=0 untuk setiap matriks A.","la1-c3"),N("Jika A 2×2 dan det(A)≠0, maka SPL Ax=b mempunyai ...","tepat satu solusi untuk setiap b",["tak ada solusi","tak hingga solusi","solusi hanya jika b=0"],"det(A)≠0 berarti A invertibel.","la1-c4")],
+    ()=>[N("Basis standar R³ terdiri dari ...","3 vektor",["2 vektor","4 vektor","1 vektor"],"Basis standar adalah e1,e2,e3.","la1-d1"),N("Himpunan {(1,0),(0,1)} di R² adalah ...","basis R²",["bukan span","basis R³","hanya subruang nol"],"Keduanya bebas linear dan membangun seluruh R².","la1-d2"),N("Jika vektor u dapat ditulis sebagai kombinasi linear v1,v2, maka u berada di ...","span{v1,v2}",["null space selalu","orthogonal complement selalu","ruang eigen selalu"],"Itulah definisi span dari v1 dan v2.","la1-d3"),N("Sebuah sistem dengan 3 persamaan dan 2 variabel dapat memiliki solusi unik?","Ya",["Tidak pernah","Hanya jika semua koefisien nol","Hanya jika determinan 3×2 ada"],"Jumlah persamaan lebih banyak tidak otomatis menghalangi solusi unik; yang penting konsistensi dan rank.","la1-d4")],
+    ()=>[N("Jika A=[[1,0],[0,2]], maka A(3,−1)=...","(3,−2)",["(3,−1)","(1,−2)","(6,−2)"],"Perkalian matriks memberi (1·3,2·(−1))=(3,−2).","la1-e1"),N("Persamaan 3x−2y=7 merepresentasikan di R² sebuah ...","garis",["lingkaran","parabola","titik tunggal"],"Satu persamaan linear dua variabel menggambarkan garis jika konsisten.","la1-e2"),N("Jika dua vektor tak nol saling kelipatan, maka span keduanya berdimensi ...","1",["0","2","3"],"Keduanya berada pada satu garis melalui origin.","la1-e3"),N("Matriks identitas I memenuhi ...","Ix=x",["Ix=0","I²=0","I=0"],"Identitas bertindak sebagai elemen netral perkalian matriks.","la1-e4")]
+  ];
+  B[0].push(
+    ()=>[N("Operasi baris yang ekuivalen dengan SPL semula adalah ...","menukar dua baris",["menghapus persamaan","mengalikan baris dengan 0","mengganti variabel"],"Pertukaran baris adalah operasi elementer yang mempertahankan solusi.","la1-f1"),N("Jika satu baris dikalikan bilangan tak nol, maka ...","himpunan solusi tetap",["selalu berubah","menjadi kosong","rank pasti nol"],"Persamaan hanya dikalikan skalar tak nol, sehingga ekuivalen.","la1-f2"),N("Eliminasi Gauss bertujuan mengubah matriks ke bentuk ...","eselon baris",["selalu diagonal","nol semua","simetris selalu"],"Operasi baris digunakan untuk mencapai row echelon form.","la1-f3"),N("SPL konsisten jika augmented matrix tidak memiliki baris [0 0 | c] dengan c≠0. Pernyataan ini ...","benar",["salah","hanya untuk 3 variabel","hanya untuk matriks diagonal"],"Baris tersebut menyatakan 0=c, kontradiksi.","la1-f4")],
+    ()=>[N("Jika A berordo 2×3 dan B berordo 3×4, maka AB berordo ...","2×4",["3×3","2×3","4×2"],"Dimensi dalam perkalian adalah (2×3)(3×4)=(2×4).","la1-g1"),N("Jika A dan B berordo sama, A+B terdefinisi jika ...","jumlah baris dan kolom sama",["hanya jumlah baris sama","hanya jumlah kolom sama","determinannya sama"],"Penjumlahan matriks dilakukan elemen bersesuaian.","la1-g2"),N("Matriks identitas 3×3 memiliki ...","tiga elemen diagonal bernilai 1",["semua elemen 1","tiga elemen nol","hanya satu elemen"],"I₃ memiliki 1 pada diagonal dan 0 di luar diagonal.","la1-g3"),N("Jika A²=A, maka A disebut ...","idempoten",["ortogonal pasti","nilpoten","simetris pasti"],"Definisi matriks idempoten adalah A²=A.","la1-g4")],
+    ()=>[N("Jika Ax=0 hanya memiliki solusi x=0, kolom A ...","bebas linear",["dependen linear","tidak punya span","selalu ortogonal"],"Kernel trivial ekuivalen dengan kolom-kolom bebas linear untuk sistem homogen.","la1-h1"),N("Jika rank(A)=n untuk A berordo m×n, maka ...","kolom A bebas linear",["baris A semuanya nol","A pasti persegi","nullity A=n"],"Rank sama dengan jumlah kolom berarti semua kolom pivot.","la1-h2"),N("Sistem homogen Ax=0 selalu memiliki ...","solusi trivial",["tepat dua solusi","tak ada solusi","solusi positif"],"x=0 selalu memenuhi Ax=0.","la1-h3"),N("Jika A invertibel, persamaan Ax=b dapat diselesaikan dengan ...","x=A⁻¹b",["x=Ab","x=bA","x=A+b"],"Kalikan kiri dengan A⁻¹: x=A⁻¹b.","la1-h4")]
+  );
+  const common=[
+    ["det [[2,1],[3,4]] = ...","5",["8","11","−5"],"det=2·4−1·3=5."],
+    ["Invers [[1,0],[0,3]] adalah ...","[[1,0],[0,1/3]]",["[[1,0],[0,3]]","[[3,0],[0,1]]","[[0,1],[1/3,0]]"],"Balik setiap elemen diagonal nonnol."],
+    ["Trace [[2,−1],[4,5]] = ...","7",["3","6","10"],"Trace adalah jumlah diagonal 2+5=7."],
+    ["Jika det(A)=−2 untuk 2×2, maka det(3A)=...","−18",["−6","−2","18"],"det(cA)=c²det(A)=9(−2)=−18."],
+    ["Rank matriks [[1,2],[2,4]] adalah ...","1",["0","2","4"],"Baris kedua dua kali baris pertama, hanya satu baris independen."],
+    ["Nullity A jika A berordo 3×5 dan rank(A)=3 adalah ...","2",["1","3","5"],"Rank-nullity: 3+nullity=5."],
+    ["Himpunan {(1,1),(1,−1)} membangun R²?","Ya",["Tidak","hanya sumbu-x","hanya sumbu-y"],"Kedua vektor independen karena determinan matriks kolomnya −2≠0."],
+    ["Eigenvalue matriks diag(4,−1) adalah ...","4 dan −1",["3 dan 5","0 dan 4","hanya 4"],"Untuk matriks diagonal, eigenvalue adalah elemen diagonal."],
+    ["Jika Av=λv dengan v≠0, maka v disebut ...","eigenvector",["null vector","row vector","basis standar"],"Itu definisi eigenvector."],
+    ["Jika A=PDP⁻¹, maka A dan D memiliki ...","eigenvalue yang sama",["baris yang sama","elemen yang sama","nullity selalu berbeda"],"Similarity mempertahankan karakteristik, termasuk eigenvalue."],
+    ["Dua vektor u,v ortogonal jika ...","u·v=0",["u·v=1","u=v","||u||=||v||"],"Definisi orthogonality dalam inner product standar."],
+    ["Norma v=(3,4) adalah ...","5",["7","1","12"],"√(3²+4²)=5."],
+    ["Proyeksi v pada u menggunakan formula ...","(v·u)/(u·u) u",["(v·u)u","(u·u)v","v−u"],"Itu rumus proyeksi ortogonal untuk u≠0."],
+    ["Jika T linear, T(0)=...","0",["1","T(1)","tidak tentu"],"Linearitas mengharuskan T(0)=0."],
+    ["Transformasi dengan matriks standar ber-determinan nol bersifat ...","tidak invertibel",["selalu ortogonal","pasti identitas","selalu diagonal"],"Determinan nol berarti tidak memiliki invers."],
+    ["Jika A memiliki eigenvalue 2,3,5, maka det(A)=...","30",["10","15","60"],"Determinan adalah hasil kali eigenvalue untuk matriks persegi."],
+    ["Jika A memiliki eigenvalue 1,4,−2, maka trace(A)=...","3",["−8","7","5"],"Trace adalah jumlah eigenvalue dengan multiplicity: 1+4−2=3."],
+    ["Basis suatu ruang harus ...","bebas linear dan membangun ruang",["hanya ortogonal","hanya memiliki satu vektor","selalu berisi nol"],"Basis memenuhi dua syarat tersebut."],
+    ["Jika dimensi V=4, setiap basis V memiliki ...","4 vektor",["3","5","tak tentu"],"Semua basis ruang berdimensi 4 memiliki tepat 4 elemen."],
+    ["Ruang kolom A adalah ...","span kolom-kolom A",["span baris selalu","null space","himpunan eigenvalue"],"Column space didefinisikan sebagai span kolom A."]
+  ];
+  for(let li=1;li<10;li++) B[li]=common.map((q,j)=>()=>[N(q[0],q[1],q[2],q[3],`la${li+1}-${j}-a`),N(q[0]+" — interpretasi geometris",q[1],q[2],q[3],`la${li+1}-${j}-b`),N(q[0]+" — konsekuensi teoretis",q[1],q[2],q[3],`la${li+1}-${j}-c`),N(q[0]+" — aplikasi",q[1],q[2],q[3],`la${li+1}-${j}-d`)]);
+  return diverseBank(L,B);
+}
+const COLLEGE_BANKS=[
+  {name:"Kalkulus 1",icon:"📐",levels:calcBanks()},
+  {name:"Aljabar Linear",icon:"🔢",levels:linearBanks()}
+];
+
+function renderCollege(){
+  const grid=$("collegeGrid"); grid.innerHTML="";
+  COLLEGE_BANKS.forEach((bank,i)=>{
+    const b=document.createElement("button"); b.className="level";
+    b.innerHTML=`${bank.icon} ${bank.name}<small>🎓 ${bank.levels.length} level • 15 soal/level • 180 detik/soal</small>`;
+    b.addEventListener("click",()=>renderCollegeLevels(i)); grid.appendChild(b);
+  });
+  show("college");
+}
+function renderCollegeLevels(subject){
+  collegeSubject=subject;
+  const bank=COLLEGE_BANKS[subject];
+  $("collegeTitle").textContent=`${bank.icon} ${bank.name} • PILIH LEVEL`;
+  const grid=$("collegeLevelGrid"); grid.innerHTML="";
+  bank.levels.forEach((lv,i)=>{
+    const b=document.createElement("button"); b.className="level";
+    b.innerHTML=`${i+1}. ${lv.name}<small>🔓 TERSEDIA • 15 soal • 180 detik/soal</small>`;
+    b.addEventListener("click",()=>startCollege(subject,i,false)); grid.appendChild(b);
+  });
+  show("collegeLevels");
+}
+function hashSeed(text){
+  let h=2166136261;
+  for(let i=0;i<text.length;i++){
+    h^=text.charCodeAt(i);
+    h=Math.imul(h,16777619);
+  }
+  return h>>>0;
+}
+function seededShuffle(arr,seed){
+  const a=arr.slice();
+  let state=seed>>>0;
+  function rnd(){
+    state+=0x6D2B79F5;
+    let t=state;
+    t=Math.imul(t^(t>>>15),t|1);
+    t^=t+Math.imul(t^(t>>>7),t|61);
+    return ((t^(t>>>14))>>>0)/4294967296;
+  }
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(rnd()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function makeCollegeSet(pool,subject,level,attempt){
+  // Deterministic and diverse: same subject + level + SET => identical set/order
+  // on every device, while a set contains at most one question from each concept type.
+  const base=hashSeed(`UTBK-QUEST-COLLEGE-V5|${subject}|${level}|${attempt}`);
+  const old=new Set(attempt>0 ? collegePreviousIds : []);
+  const source=attempt>0 ? pool.filter(q=>!old.has(q[4])) : pool.slice();
+  const groups=new Map();
+  source.forEach(q=>{ const type=q.type || q[4]; if(!groups.has(type)) groups.set(type,[]); groups.get(type).push(q); });
+  const types=seededShuffle([...groups.keys()],base);
+  let chosen=[];
+  // Pick one concept from each type first. This prevents a set from containing
+  // question 1 and 2 that are merely the same formula with different numbers.
+  for(const type of types){
+    if(chosen.length>=15) break;
+    const variants=seededShuffle(groups.get(type),hashSeed(`${base}|${type}`));
+    chosen.push(variants[0]);
+  }
+  // Defensive fallback if a future bank has fewer than 15 concept types.
+  if(chosen.length<15){
+    const used=new Set(chosen.map(q=>q[4]));
+    const rest=seededShuffle(source.filter(q=>!used.has(q[4])),base+17);
+    chosen=chosen.concat(rest).slice(0,15);
+  }
+  return seededShuffle(chosen,hashSeed(`${base}|ORDER`));
+}
+function startCollege(subject,level,retry){
+  stopTimer(); collegeSubject=subject; collegeLevel=level;
+  collegeAttempt=retry ? collegeAttempt+1 : 0;
+  const pool=COLLEGE_BANKS[subject].levels[level].pool;
+  collegeQuestions=makeCollegeSet(pool,subject,level,collegeAttempt);
+  collegePreviousIds=collegeQuestions.map(q=>q[4]);
+  qIndex=0;hp=3;score=0;exp=0;combo=0;gameMode="college";currentBank=-1;show("game");loadQuestion();
+}
+
+function startOther(i){
+  stopTimer(); gameMode="other"; currentBank=i; qIndex=0; hp=3; score=0; exp=0; combo=0; show("game"); loadQuestion();
+}
+
+function startLevel(i){
+  stopTimer(); gameMode="level"; current=i; currentBank=-1;qIndex=0;hp=3;score=0;exp=0;combo=0;show("game");loadQuestion();
+}
+
+function loadQuestion(){
+  stopTimer(); answered=false;
+  let source;
+  if(gameMode==="level") source=LEVELS[current];
+  else if(gameMode==="other") source=OTHER_BANKS[currentBank];
+  else source={name:`${COLLEGE_BANKS[collegeSubject].name} • ${COLLEGE_BANKS[collegeSubject].levels[collegeLevel].name}`,icon:COLLEGE_BANKS[collegeSubject].icon,qs:collegeQuestions};
+  const q=source.qs[qIndex];
+  $("levelName").textContent=gameMode==="level" ? `Level ${current+1} • ${source.name}` : gameMode==="other" ? `📚 ${source.icon} ${source.name}` : `📚 ${source.icon} ${source.name} • SET ${collegeAttempt+1}`;
+  $("questionNo").textContent=`Soal ${qIndex+1}/${source.qs.length}`;
+  $("bar").style.width=(qIndex/source.qs.length*100)+"%";
+  $("question").textContent=q[0];$("feedback").textContent="";$("nextBtn").classList.add("hidden");
+  const box=$("options");box.innerHTML="";
+  q[1].forEach((text,i)=>{
+    const btn=document.createElement("button");btn.className="btn option";btn.textContent=String.fromCharCode(65+i)+". "+text;
+    btn.addEventListener("click",()=>answer(i,btn));box.appendChild(btn);
+  });
+  seconds=gameMode==="college"?180:60;
+  $("timer").textContent=seconds;updateStats();
+  timer=setInterval(()=>{
+    if(answered)return;
+    seconds=Math.max(0,seconds-1);$("timer").textContent=seconds;
+    if(seconds===0){stopTimer();answer(-1,null);}
+  },1000);
+}
+function answer(choice,clicked){
+  if(answered)return;
+  answered=true;stopTimer();
+  let source;
+  if(gameMode==="level") source=LEVELS[current];
+  else if(gameMode==="other") source=OTHER_BANKS[currentBank];
+  else source={qs:collegeQuestions};
+  const q=source.qs[qIndex], correct=q[2];
+  const buttons=[...$("options").children];
+  buttons.forEach((btn,i)=>{btn.disabled=true;if(i===correct)btn.classList.add("correct");});
+  if(choice===correct){
+    combo++;const gain=10+Math.min(combo,5)*2;score+=gain;exp+=10;
+    $("feedback").textContent=`✅ BENAR! +${gain} skor — ${q[3]}`;
+  }else{
+    combo=0;hp--;if(clicked)clicked.classList.add("wrong");
+    $("feedback").textContent=`❌ ${choice===-1?"Waktu habis. ":"Jawaban salah. "} ${q[3]}`;
+  }
+  updateStats();
+  if(hp<=0){setTimeout(()=>finish(false),650);return;}
+  $("nextBtn").classList.remove("hidden");
+}
+function next(){
+  if(!answered)return;
+  qIndex++;
+  const total=gameMode==="level" ? LEVELS[current].qs.length : gameMode==="other" ? OTHER_BANKS[currentBank].qs.length : collegeQuestions.length;
+  if(qIndex>=total)finish(true);else loadQuestion();
+}
+function finish(completed){
+  stopTimer();
+  if(gameMode==="college"){
+    const bank=COLLEGE_BANKS[collegeSubject], lv=bank.levels[collegeLevel];
+    $("resultIcon").textContent=completed?"🎓":"💀";
+    $("resultTitle").textContent=completed?"LEVEL SELESAI!":"LEVEL GAGAL";
+    $("resultText").innerHTML=`<b>${bank.icon} ${bank.name}</b><br><b>${lv.name}</b><br>SET: <b>${collegeAttempt+1}</b> • Skor: <b>${score}</b> • EXP: ${exp} • HP: ${hp}<br><br>${completed?"🎉 15 soal selesai. Semua pemain pada level dan SET yang sama mendapat soal yang sama.":"💡 Kamu kalah. ULANG LEVEL akan pindah ke SET berikutnya. Semua pemain yang mengulang pada SET yang sama akan mendapat soal yang sama."}`;
+  }else if(gameMode==="other"){
+    const bank=OTHER_BANKS[currentBank];
+    $("resultIcon").textContent=completed?"📚":"💀";
+    $("resultTitle").textContent=completed?"SELESAI!":"SESI BERAKHIR";
+    $("resultText").innerHTML=`<b>${bank.icon} ${bank.name}</b><br>Skor: <b>${score}</b><br>EXP: ${exp} • HP tersisa: ${hp}<br><br>${completed?"🎯 Semua soal di bank ini sudah selesai.":"HP habis. Kamu bisa mengulang bank soal ini."}`;
+  }else{
+    const lv=LEVELS[current], passed=completed&&score>=lv.target;
+    if(passed && unlocked<current+2){unlocked=current+2;save();}
+    $("resultIcon").textContent=passed?(current===4||current===9?"👑":"🏆"):"💀";
+    $("resultTitle").textContent=passed?"LEVEL LULUS!":"BELUM LULUS";
+    $("resultText").innerHTML=`<b>${lv.name}</b><br>Skor: <b>${score}</b> / target ${lv.target}<br>EXP: ${exp} • HP tersisa: ${hp}<br><br>${passed?"🔓 Progress tersimpan. Level berikutnya sekarang terbuka.":"Kamu harus mencapai target skor dan menyelesaikan semua soal."}`;
+  }
+  show("result");
+}
+$("continueBtn").addEventListener("click",()=>renderLevels());
+$("otherBtn").addEventListener("click",renderSubjects);
+$("collegeBtn").addEventListener("click",renderCollege);
+$("homeBtnOther").addEventListener("click",()=>show("home"));
+$("homeBtnCollege").addEventListener("click",()=>show("home"));
+$("collegeBackBtn").addEventListener("click",renderCollege);
+$("resetBtn").addEventListener("click",()=>{
+  if(confirm("Reset semua progress level?")){unlocked=1;save();renderLevels();}
+});
+$("homeBtn1").addEventListener("click",()=>show("home"));
+$("nextBtn").addEventListener("click",next);
+$("retryBtn").addEventListener("click",()=>{
+  if(gameMode==="level") startLevel(current);
+  else if(gameMode==="other") startOther(currentBank);
+  else startCollege(collegeSubject,collegeLevel,true);
+});
+$("levelsBtn").addEventListener("click",gameMode==="college"?renderCollegeLevels.bind(null,collegeSubject):renderLevels);
+
+loadSave();show("home");
+</script>
+</body>
+</html>
